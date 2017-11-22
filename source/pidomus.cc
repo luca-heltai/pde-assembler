@@ -205,6 +205,17 @@ piDoMUS<dim, spacedim, LAC>::~piDoMUS ()
 #endif
 }
 
+
+template<int dim, int spacedim, typename LAC>
+void piDoMUS<dim,spacedim,LAC>::init()
+{
+  interface.connect_to_signals();
+  make_grid_fe();
+  setup_dofs(true);
+  train_constraints[0]->distribute(solution);
+  constraints_dot.distribute(solution_dot);
+}
+
 template <int dim, int spacedim, typename LAC>
 void piDoMUS<dim, spacedim, LAC>::run ()
 {

@@ -334,7 +334,7 @@ private:
 
 
   //// current time
-
+ public:
   /**
    * solution at current time step
    */
@@ -546,6 +546,11 @@ public:
 
   Lambdas<dim,spacedim,LAC> lambdas;
 
+  /**
+   * call this function after ParameterAcceptor::initialize and before
+   * any other function of the solver
+   */
+  void init();
 };
 
 
