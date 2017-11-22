@@ -334,7 +334,7 @@ private:
 
 
   //// current time
- public:
+public:
   /**
    * solution at current time step
    */
