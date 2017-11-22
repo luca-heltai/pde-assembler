@@ -1,8 +1,8 @@
 # Parameter file generated with 
 # D2K_GIT_BRANCH=       master
-# D2K_GIT_SHORTREV=     2920ab2
+# D2K_GIT_SHORTREV=     a0a7c70
 # DEAL_II_GIT_BRANCH=   master
-# DEAL_II_GIT_SHORTREV= 1664b40
+# DEAL_II_GIT_SHORTREV= ec3ec701f2
 subsection Dirichlet boundary conditions
   set IDs and component masks = 0=ALL
   set IDs and expressions     = 0=(1-y)*y*sin(2*pi*(x-t))
@@ -115,6 +115,22 @@ subsection Neumann boundary conditions
   set Known component names   = u
   set Used constants          = 
 end
+subsection Outer imex
+  set Absolute error tolerance                     = 1e-6
+  set Final time                                   = 1.0
+  set Initial time                                 = 0.0
+  set Intervals between outputs                    = 1
+  set Maximum number of inner nonlinear iterations = 3
+  set Maximum number of outer nonlinear iterations = 5
+  set Method used                                  = fixed_alpha
+  set Newton relaxation parameter                  = 1
+  set Number of elements in backtracking sequence  = 5
+  set Print useful informations                    = false
+  set Relative error tolerance                     = 1e-5
+  set Step size                                    = 1e-2
+  set Update continuously Jacobian                 = true
+  set Use the KINSOL solver                        = false
+end
 subsection Output Parameters
   set Files to save in run directory = 
   set Incremental run prefix         = 
@@ -149,13 +165,21 @@ subsection Zero average constraints
 end
 subsection pidomus
   set Adaptive refinement                            = true
+  set Enable finer preconditioner                    = false
   set Initial global refinement                      = 2
-  set Number of cycles                               = 1
+  set Jacobian solver tolerance                      = 1e-8
   set Max iterations                                 = 1000
+  set Max iterations finer prec.                     = 0
+  set Max tmp vectors                                = 30
+  set Max tmp vectors for finer system               = 50
+  set Number of cycles                               = 1
+  set Number of eigenvalues to compute               = 10
+  set Number of used Arnoldi vectors                 = 0
   set Overwrite Newton's iterations                  = false
   set Print some useful informations about processes = true
   set Refine mesh during transient                   = true
   set Threshold for solver's restart                 = 5e-3
   set Time stepper                                   = ida
   set Use direct solver if available                 = true
+  set Which eigenvalues                              = smallest_real_part
 end
