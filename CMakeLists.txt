@@ -57,15 +57,6 @@ FIND_PACKAGE(deal2lkit 1.0 REQUIRED
   )
 D2K_INITIALIZE_CACHED_VARIABLES()
 
-# pidomus requires sundials 
-IF(NOT D2K_WITH_SUNDIALS)
-  MESSAGE(FATAL_ERROR "
-  Error! The deal2lkit library found at ${D2K_PATH} was not configured with
-  D2K_WITH_SUNDIALS = ON
-  Please recompile deal2lkit enabling this feature."
-  )
-ENDIF()
-
 
 OPTION(ENABLE_APP_TESTING "Enable tests in this application." ON)
 OPTION(ENABLE_DOCUMENTATION "Enable Doxygen documentation." ON)

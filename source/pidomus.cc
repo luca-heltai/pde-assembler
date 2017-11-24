@@ -102,8 +102,6 @@ piDoMUS<dim, spacedim, LAC>::piDoMUS (const std::string &name,
                interface.get_component_names() ),
 
 
-  ida("IDA Solver Parameters", comm),
-  imex("IMEX Parameters", comm),
   we_are_parallel(Utilities::MPI::n_mpi_processes(comm) > 1),
   lambdas(*this)
 {
@@ -176,9 +174,6 @@ piDoMUS<dim, spacedim, LAC>::piDoMUS (const std::string &name,
                interface.n_components,
                interface.get_component_names() ),
 
-
-  ida("IDA Solver Parameters"),
-  imex("IMEX Parameters"),
   we_are_parallel(false),
   lambdas(*this)
 {
@@ -219,54 +214,8 @@ void piDoMUS<dim,spacedim,LAC>::init()
 template <int dim, int spacedim, typename LAC>
 void piDoMUS<dim, spacedim, LAC>::run ()
 {
-  interface.set_stepper(time_stepper);
-
-  interface.connect_to_signals();
-
-  for (current_cycle = 0; current_cycle < n_cycles; ++current_cycle)
-    {
-      if (current_cycle == 0)
-        {
-          make_grid_fe();
-          setup_dofs(true);
-        }
-      else
-        refine_mesh();
-
-      train_constraints[0]->distribute(solution);
-      constraints_dot.distribute(solution_dot);
-
-      if (time_stepper == "ida")
-        {
-          ida.create_new_vector = lambdas.create_new_vector;
-          ida.residual = lambdas.residual;
-          ida.setup_jacobian = lambdas.setup_jacobian;
-          ida.solver_should_restart = lambdas.solver_should_restart;
-          ida.solve_jacobian_system = lambdas.solve_jacobian_system;
-          ida.output_step = lambdas.output_step;
-          ida.differential_components = lambdas.differential_components;
-          ida.solve_dae(solution, solution_dot);
-        }
-      else if (time_stepper == "euler" || time_stepper == "imex")
-        {
-          current_alpha = imex.get_alpha();
-          imex.create_new_vector = lambdas.create_new_vector;
-          imex.residual = lambdas.residual;
-          imex.setup_jacobian = lambdas.setup_jacobian;
-          imex.solver_should_restart = lambdas.solver_should_restart;
-          imex.solve_jacobian_system = lambdas.solve_jacobian_system;
-          imex.output_step = lambdas.output_step;
-          imex.get_lumped_mass_matrix = lambdas.get_lumped_mass_matrix;
-          imex.jacobian_vmult = lambdas.jacobian_vmult;
-          imex.solve_dae(solution, solution_dot);
-        }
-      eh.error_from_exact(interface.get_error_mapping(), *dof_handler, locally_relevant_solution, exact_solution);
-    }
-
-  eh.output_table(pcout);
-
+  Assert(false, ExcNotImplemented());
 }
-
 
 template <int dim, int spacedim, typename LAC>
 void piDoMUS<dim, spacedim, LAC>::make_grid_fe()
