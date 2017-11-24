@@ -1,4 +1,5 @@
 #include "pidomus.h"
+#include "pidomus_macros.h"
 
 template <int dim, int spacedim, typename LAC>
 SimulatorAccess<dim,spacedim,LAC>::SimulatorAccess ()
@@ -160,13 +161,7 @@ SimulatorAccess<dim,spacedim,LAC>::get_dirichlet_bcs() const
   return simulator->dirichlet_bcs;
 }
 
+#define INSTANTIATE(dim,spacedim,LA) \
+  template class SimulatorAccess<dim,spacedim,LA>;
 
-
-template class SimulatorAccess<2, 2, LATrilinos>;
-template class SimulatorAccess<2, 3, LATrilinos>;
-template class SimulatorAccess<3, 3, LATrilinos>;
-
-template class SimulatorAccess<2, 2, LADealII>;
-template class SimulatorAccess<2, 3, LADealII>;
-template class SimulatorAccess<3, 3, LADealII>;
-
+PIDOMUS_INSTANTIATE(INSTANTIATE)

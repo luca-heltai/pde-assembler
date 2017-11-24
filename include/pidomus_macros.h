@@ -6,6 +6,9 @@
   * and functions.
   */
 #define PIDOMUS_INSTANTIATE(INSTANTIATIONS) \
+  INSTANTIATIONS(1,1,LATrilinos) \
+  INSTANTIATIONS(1,2,LATrilinos) \
+  INSTANTIATIONS(1,3,LATrilinos) \
   INSTANTIATIONS(2,2,LATrilinos) \
   INSTANTIATIONS(2,3,LATrilinos) \
   INSTANTIATIONS(3,3,LATrilinos) \
