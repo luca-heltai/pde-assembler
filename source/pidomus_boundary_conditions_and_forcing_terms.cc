@@ -100,8 +100,8 @@ apply_dirichlet_bcs (const DoFHandler<dim,spacedim> &dof_handler,
       bc.project_boundary_values(interface.get_bc_mapping(),dof_handler,quad,constraints);
     }
   unsigned int codim = spacedim - dim;
-  if (codim == 0)
-    bc.compute_nonzero_normal_flux_constraints(dof_handler,interface.get_bc_mapping(),constraints);
+  // if (codim == 0)
+  //   bc.compute_nonzero_normal_flux_constraints(dof_handler,interface.get_bc_mapping(),constraints);
 }
 
 

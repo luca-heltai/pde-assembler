@@ -175,6 +175,19 @@ public:
   const typename LAC::VectorType &
   get_locally_relevant_explicit_solution () const;
 
+
+  /**
+   * Return a reference to the vector that has the solution of the
+   * entire system at two-to-last time step. This vector is
+   * associated with the DoFHandler object returned by
+   * get_dof_handler().
+   *
+   * @note In general the vector is a distributed vector; however, it
+   * contains ghost elements for all locally relevant degrees of freedom.
+   */
+  const typename LAC::VectorType &
+  get_locally_relevant_previous_explicit_solution () const;
+
   /**
    * Return a reference to the DoFHandler that is used to
    * discretize the variables at the current time step.

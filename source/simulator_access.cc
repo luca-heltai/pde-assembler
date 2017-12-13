@@ -133,6 +133,13 @@ SimulatorAccess<dim,spacedim,LAC>::get_locally_relevant_explicit_solution () con
   return simulator->locally_relevant_explicit_solution;
 }
 
+template <int dim, int spacedim, typename LAC>
+const typename LAC::VectorType &
+SimulatorAccess<dim,spacedim,LAC>::get_locally_relevant_previous_explicit_solution () const
+{
+  return simulator->locally_relevant_previous_explicit_solution;
+}
+
 
 template <int dim, int spacedim, typename LAC>
 const DoFHandler<dim,spacedim> &
