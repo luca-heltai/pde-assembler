@@ -13,7 +13,7 @@
 # everything will work out of the box
 ##
 
-SET(TARGET pidomus)
+SET(TARGET pdeassembler)
 
 # Declare all source files the target consists of:
 file(GLOB _files source/*cc

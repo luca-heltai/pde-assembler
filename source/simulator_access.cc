@@ -91,10 +91,10 @@ double SimulatorAccess<dim,spacedim,LAC>::get_timestep () const
 
 
 template <int dim, int spacedim, typename LAC>
-const Triangulation<dim,spacedim> *
+const Triangulation<dim,spacedim> &
 SimulatorAccess<dim,spacedim,LAC>::get_triangulation () const
 {
-  return simulator->triangulation;
+  return *simulator->triangulation;
 }
 
 

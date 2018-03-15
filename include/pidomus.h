@@ -345,7 +345,7 @@ private:
   ConditionalOStream        pcout;
 
   TriaHelper<dim,spacedim,LAC> tria_helper;
-  Triangulation<dim,spacedim> *triangulation;
+  shared_ptr<Triangulation<dim,spacedim> >triangulation;
   ParsedGridRefinement  pgr;
 
   shared_ptr<FiniteElement<dim, spacedim> >       fe;

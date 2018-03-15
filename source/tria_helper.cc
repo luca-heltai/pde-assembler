@@ -1,32 +1,15 @@
 #include "pidomus_macros.h"
 #include <tria_helper.h>
 #include <deal.II/base/utilities.h>
+#include <deal.II/base/mpi.h>
 
-#ifdef DEAL_II_WITH_MPI
 template <int dim, int spacedim, typename LAC>
-TriaHelper<dim,spacedim,LAC>::TriaHelper(const MPI_Comm _comm):
-  comm(Utilities::MPI::duplicate_communicator(_comm)),
+TriaHelper<dim,spacedim,LAC>::TriaHelper(const MPI_Comm &_comm):
+  comm(_comm),
   pgg("Domain"),
   p_serial(nullptr),
   p_parallel(nullptr)
 {}
-
-template <int dim, int spacedim, typename LAC>
-TriaHelper<dim,spacedim,LAC>::~TriaHelper()
-{
-  p_serial.reset();
-  p_parallel.reset();
-  MPI_Comm_free(&comm);
-}
-
-#else
-template <int dim, int spacedim, typename LAC>
-TriaHelper<dim,spacedim,LAC>::TriaHelper()
-  :
-  pgg("Domain"),
-  p_serial(nullptr),
-{}
-#endif
 
 template <int dim, int spacedim, typename LAC>
 void TriaHelper<dim,spacedim,LAC>::make_grid()
@@ -40,13 +23,13 @@ void TriaHelper<dim,spacedim,LAC>::make_grid()
 }
 
 template <int dim, int spacedim, typename LAC>
-Triangulation<dim, spacedim> *
+shared_ptr<Triangulation<dim,spacedim> >
 TriaHelper<dim,spacedim,LAC>::get_tria() const
 {
   if (LAC::triatype == TriaType::serial)
-    return p_serial.get();
+    return p_serial;
 #ifdef DEAL_II_WITH_MPI
-  return p_parallel.get();
+  return p_parallel;
 #endif
 }
 

@@ -145,7 +145,7 @@ CompressibleNeoHookeanInterface<dim,spacedim,LAC>::compute_system_operators(cons
   });
 
   prec_op = block_operator<1, 1, LATrilinos::VectorType>({{
-      {{ P00}} ,
+      {{ P00 }} ,
     }
   });
 }
