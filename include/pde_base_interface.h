@@ -1,5 +1,5 @@
-#ifndef _pidomus_base_interface_h_
-#define _pidomus_base_interface_h_
+#ifndef pde_base_interface_h_
+#define pde_base_interface_h_
 
 #include <deal.II/lac/linear_operator.h>
 #include <deal.II/lac/linear_operator.h>
@@ -25,7 +25,7 @@ template <int dim, int spacedim, typename LAC> struct Signals;
 
 using namespace pidomus;
 /**
- * Base Interface
+ * PDE Base Interface
  *
  * *Goal*: provide a derivable interface to solve a particular PDE
  * System (time dependent, first-order, non linear).
@@ -69,16 +69,16 @@ using namespace pidomus;
  * }
  * \endcode
  *
- * The class PDESystemInterface is derived from BaseInterface, and implements
+ * The class PDESystemInterface is derived from PDEBaseInterface, and implements
  * CRTP.
  *
- * BaseInterface derives from SimulatorAccess class, which stores a reference to
+ * PDEBaseInterface derives from SimulatorAccess class, which stores a reference to
  * the simulator (i.e. pi-DoMUS) where the specific pde system is solved.
  * Each variable inside the simulator can be accessed with a function
  * "get_solution()", "get_locally_relevant_solution()", "get_time()".
  */
 template <int dim,int spacedim=dim, typename LAC=LATrilinos>
-class BaseInterface : public ParameterAcceptor, public SimulatorAccess<dim,spacedim,LAC>
+class PDEBaseInterface : public ParameterAcceptor, public PDEAssemblerAcces<dim,spacedim,LAC>
 {
 
 public:
@@ -86,7 +86,7 @@ public:
   /**
    * virtual destructor.
    */
-  virtual ~BaseInterface() {}
+  virtual ~PDEBaseInterface() {}
 
   /** @name Function needed in order to construct the interface */
   /** @{ */
@@ -98,12 +98,14 @@ public:
    * components and a string were the block of differential and
    * algebraic components are specified.
    */
-  BaseInterface(const std::string &name="",
-                const unsigned int &n_comp=0,
-                const unsigned int &n_matrices=0,
-                const std::string &default_fe="FE_Q(1)",
-                const std::string &default_component_names="u",
-                const std::string &default_differential_components="");
+  PDEBaseInterface(const std::string &name="",
+                   const unsigned int &n_comp=1,
+                   const std::vector<std::string> &matrices_names=
+                     std::vector<std::string>({"system"}),
+                   const std::vector<std::string> &solution_names=
+                     std::vector<std::string>({"solution"}),
+                   const std::string &default_fe="FE_Q(1)",
+                   const std::string &default_component_names="u");
   /**
    * Set the dimension of coupling consistenly with the number of
    * components and matrices set in the constructor.  This function
@@ -148,17 +150,22 @@ public:
    * file. If you need to perform post-processing on the solution you
    * must override this function.
    */
-  virtual void output_solution (const unsigned int &cycle,
-                                const unsigned int &step_number) const;
+  virtual void output_solution (const std::string &suffix="") const;
 
-#ifdef DEAL_II_WITH_ARPACK
+
   /**
-    * This function is called after an eigenvalue calculation
-    */
-  virtual void output_eigenvectors(const std::vector<typename LAC::VectorType> &eigenfunctions,
-                                   const std::vector<std::complex<double> > &eigenvalues,
-                                   const unsigned int &current_cycle) const;
-#endif
+   * Update the internally stored parameters and coefficients.
+   *
+   * The parameters can be used by the pde arbitrarily, while the coefficients
+   * are used to compute the Jacobian system, and to distinguish between active
+   * and passive vectors.
+   *
+   * @param parameters
+   * @param coefficients
+   */
+  virtual void set_current_parameters_and_coefficients(const std::map<std::string, double> &parameters,
+                                                       const std::vector<double> &coefficients) const;
+
 
   /** @name Functions dedicated to assemble system and preconditioners */
   /** @{ */
@@ -187,7 +194,7 @@ public:
 
   /**
    * Assemble local matrices. The default implementation calls
-   * BaseInterface::assemble_energies_and_residuals and creates the
+   * PDEBaseInterface::assemble_energies_and_residuals and creates the
    * local matrices by performing automatic differentiation on the
    * results.
    */
@@ -203,60 +210,6 @@ public:
   virtual void assemble_local_system_residual (const typename DoFHandler<dim,spacedim>::active_cell_iterator &cell,
                                                FEValuesCache<dim,spacedim> &scratch,
                                                CopyData &data) const;
-#ifdef DEAL_II_WITH_ARPACK
-  /**
-   * Assemble the local mass matrix. The mass matrix is used for solving
-   * the generalized eigenvalue problem. By default the mass matrix is
-   * assembled. If you want to solve a different eigenvalue problem
-   * you need to override this function.
-   */
-  virtual void assemble_local_mass_matrix(const typename DoFHandler<dim,spacedim>::active_cell_iterator &cell,
-                                          FEValuesCache<dim,spacedim> &scratch,
-                                          CopyMass &data) const;
-#endif
-
-  /**
-   * Compute linear operators needed by the problem: - @p system_op
-   * represents the system matrix associated to the Newton's
-   * iterations; - @p prec_op represents the preconditioner; - @p
-   * prec_op_finer represents a finer preconditioner that can be used
-   * in the case the problem does not converge using @p prec_op .
-   *
-   * To clarify the difference between @p prec_op and @p prec_op_finer
-   * consider the case where you have a matrix A and you want to
-   * provide an 'inverse' using AMG.  A possible strategy consist in
-   * using the linear operator associated to AMG and a further
-   * strategy is to invert A using AMG.  In detail, @p prec_op
-   * should be
-   * \code{.cpp}
-   *   auto A_inv = linear_operator(A, AMG)
-   * \endcode
-   * while @p prec_op_finer
-   * \code{.cpp}
-   *   auto A_inv = inverse_operator(A, solver, AMG)
-   * \endcode
-   *
-   * In the .prm file it is possible to specify the maximum
-   * number of iterations allowed for the solver in the case we are
-   * using @p prec_op or @p prec_op_finer.
-   *
-   * To enable the finer preconditioner it is sufficient to set
-   * "Enable finer preconditioner" equals to true.
-   */
-  virtual void compute_system_operators(const std::vector<shared_ptr<typename LATrilinos::BlockMatrix> > &,
-                                        LinearOperator<LATrilinos::VectorType> &system_op,
-                                        LinearOperator<LATrilinos::VectorType> &prec_op,
-                                        LinearOperator<LATrilinos::VectorType> &prec_op_finer) const;
-
-  /**
-   * Compute linear operators needed by the problem. When using
-   * deal.II vector and matrix types, this function is empty, since a
-   * direct solver is used by default.
-   */
-  void compute_system_operators(const std::vector<shared_ptr<typename LADealII::BlockMatrix> > &,
-                                LinearOperator<typename LADealII::VectorType> &,
-                                LinearOperator<typename LADealII::VectorType> &,
-                                LinearOperator<typename LADealII::VectorType> &) const;
 
   /**
    * Call the reinit of the dealii::FEValues with the given cell, and
@@ -292,11 +245,6 @@ public:
    * Declare parameters.
    */
   virtual void declare_parameters (ParameterHandler &prm);
-
-  /**
-   * Return the vector @p of differential blocks.
-   */
-  const std::vector<unsigned int> get_differential_blocks() const;
 
   /**
    * Return the mapping used when no different mapping has been
@@ -363,9 +311,6 @@ public:
   virtual UpdateFlags get_cell_update_flags() const;
   /** @} */
 
-
-
-
   /**
    * This function is called to get the coupling of the @p i-th matrix
    */
@@ -388,45 +333,83 @@ public:
    */
   const unsigned int n_matrices;
 
+  /**
+   * Number of independent vectors needed for residuals and energies.
+   */
+  const unsigned int n_vectors;
+
+  /**
+   * Number of vectors that only appear explicitly;
+   */
+  mutable unsigned int n_passive_vectors;
+
+  /**
+   * Number of vectors that appear as independent variables, for which we need
+   * to compute matrices and/or derivatives.
+   */
+  mutable unsigned int n_active_vectors;
+
+  /**
+   * Names of passive vectors.
+   */
+  mutable std::vector<std::string> passive_vector_names;
+
+  /**
+   * Names of active vectors.
+   */
+  mutable std::vector<std::string> active_vector_names;
+
+  /**
+   * Pointers to vectors that need differentiation.
+   */
+  mutable std::vector<typename LAC::VectorType *> active_vectors;
+
+  /**
+   * Pointers to vectors that do not need differentiation.
+   */
+  mutable std::vector<typename LAC::VectorType *> passive_vectors;
+
+  /**
+   * Names of independent vectors needed for residuals and energies.
+   */
+  const std::vector<std::string> matrices_names;
+
+  /**
+   * Names of independent vectors needed for residuals and energies.
+   */
+  const std::vector<std::string> solution_names;
+
+  /**
+   * Arbitrary parameters for the pde (like, for example, time/stability constants/etc).
+   */
+  mutable std::map<std::string, double> current_parameters;
+
+  /**
+   * The coefficients to use when computing derivatives.
+   */
+  mutable std::vector<double> current_coefficients;
+
+  /**
+   * Same as above, but only the ones that are different from zero.
+   */
+  mutable std::vector<double> active_coefficients;
+
+  /**
+   * Given the name of a solution vector, get the index in the vector list.
+   */
+  std::map<std::string, unsigned int> matrix_index;
+
+  /**
+   * Given the name of a solution vector, get the index in the vector list.
+   */
+  std::map<std::string, unsigned int> solution_index;
 
   /**
    * ParsedFiniteElement.
    */
   ParsedFiniteElement<dim,spacedim> pfe;
-  /**
-  * set internal variable stepper to the time stepper used by pidomus
-  * this is needed in the fix_solution_dot_derivative() functions
-  * @param s
-  */
-  void set_stepper(const std::string &s) const;
-
-  /**
-    * Return norm of vector @p v. This function is called by the IMEX stepper.
-    * By default it returns the l2 norm.
-    */
-  virtual double vector_norm(const typename LAC::VectorType &v) const;
 
 protected:
-
-  /** @name Helper functions */
-  /** @{ */
-
-  /**
-   * Do nothing but is required for Sacado types.
-   */
-  void fix_solution_dot_derivative(FEValuesCache<dim,spacedim> &, double) const;
-
-  /**
-   * Fix the "Sacado" and "non-Sacado" parts of y_dot.
-   */
-  void fix_solution_dot_derivative(FEValuesCache<dim,spacedim> &fe_cache, Sdouble alpha) const;
-
-  /**
-   * Fix the "Sacado" and "non-Sacado" parts of y_dot.
-   */
-  void fix_solution_dot_derivative(FEValuesCache<dim,spacedim> &fe_cache, SSdouble alpha) const;
-  /** @} */
-
 
   void build_couplings();
 
@@ -474,41 +457,31 @@ protected:
 template <int dim, int spacedim, typename LAC>
 template<typename Number>
 void
-BaseInterface<dim,spacedim,LAC>::reinit(const Number &,
-                                        const typename DoFHandler<dim,spacedim>::active_cell_iterator &cell,
-                                        FEValuesCache<dim,spacedim> &fe_cache) const
+PDEBaseInterface<dim,spacedim,LAC>::reinit(const Number &,
+                                           const typename DoFHandler<dim,spacedim>::active_cell_iterator &cell,
+                                           FEValuesCache<dim,spacedim> &fe_cache) const
 {
-  double dummy=0;
-  Number alpha = this->get_alpha();
+  Number dummy;
+  double double_dummy = 0;
   fe_cache.reinit(cell);
-  fe_cache.cache_local_solution_vector("explicit_solution",
-                                       this->get_locally_relevant_explicit_solution(), dummy);
-  fe_cache.cache_local_solution_vector("solution",
-                                       this->get_locally_relevant_solution(), alpha);
-  fe_cache.cache_local_solution_vector("solution_dot",
-                                       this->get_locally_relevant_solution_dot(), alpha);
-  this->fix_solution_dot_derivative(fe_cache, alpha);
+  fe_cache.cache_local_solution_vectors(passive_vector_names, passive_vectors, double_dummy);
+  fe_cache.cache_local_solution_vectors(active_vector_names, active_vectors, dummy);
 }
 
 
 template <int dim, int spacedim, typename LAC>
 template<typename Number>
 void
-BaseInterface<dim,spacedim,LAC>::reinit(const Number &,
-                                        const typename DoFHandler<dim,spacedim>::active_cell_iterator &cell,
-                                        const unsigned int face_no,
-                                        FEValuesCache<dim,spacedim> &fe_cache) const
+PDEBaseInterface<dim,spacedim,LAC>::reinit(const Number &,
+                                           const typename DoFHandler<dim,spacedim>::active_cell_iterator &cell,
+                                           const unsigned int face_no,
+                                           FEValuesCache<dim,spacedim> &fe_cache) const
 {
-  double dummy=0;
-  Number alpha = this->get_alpha();
+  Number dummy;
+  double double_dummy;
   fe_cache.reinit(cell, face_no);
-  fe_cache.cache_local_solution_vector("explicit_solution",
-                                       this->get_locally_relevant_explicit_solution(), dummy);
-  fe_cache.cache_local_solution_vector("solution",
-                                       this->get_locally_relevant_solution(), alpha);
-  fe_cache.cache_local_solution_vector("solution_dot",
-                                       this->get_locally_relevant_solution_dot(), alpha);
-  this->fix_solution_dot_derivative(fe_cache, alpha);
+  fe_cache.cache_local_solution_vectors(passive_vector_names, passive_vectors, double_dummy);
+  fe_cache.cache_local_solution_vectors(active_vector_names, active_vectors, dummy);
 }
 
 #endif

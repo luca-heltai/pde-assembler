@@ -345,7 +345,7 @@ private:
   ConditionalOStream        pcout;
 
   TriaHelper<dim,spacedim,LAC> tria_helper;
-  Triangulation<dim,spacedim> *triangulation;
+  shared_ptr<Triangulation<dim,spacedim> >triangulation;
   ParsedGridRefinement  pgr;
 
   shared_ptr<FiniteElement<dim, spacedim> >       fe;
@@ -750,9 +750,9 @@ piDoMUS<dim, spacedim, LAC>::refine_and_transfer_solutions (typename LAC::Vector
 template <int dim, int spacedim, typename LAC>
 template <int odim>
 typename std::enable_if<(odim==1), bool>::type
-piDoMUS<dim, spacedim, LAC>::solver_should_restart(const double t,
-                                                   typename LAC::VectorType &solution,
-                                                   typename LAC::VectorType &solution_dot)
+piDoMUS<dim, spacedim, LAC>::solver_should_restart(const double,
+                                                   typename LAC::VectorType &,
+                                                   typename LAC::VectorType &)
 {
   return false;
 }

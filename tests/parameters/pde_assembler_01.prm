@@ -1,0 +1,79 @@
+# Parameter file generated with 
+# D2K_GIT_BRANCH=       master
+# D2K_GIT_SHORTREV=     177781e
+# DEAL_II_GIT_BRANCH=   master
+# DEAL_II_GIT_SHORTREV= 17953e76ea
+subsection Dirichlet boundary conditions
+  set IDs and component masks = 0=ALL
+  set IDs and expressions     = 0=0
+  set Known component names   = u
+  set Used constants          = 
+end
+subsection Domain
+  set Colorize                      = false
+  set Copy boundary to manifold ids = false
+  set Copy material to manifold ids = false
+  set Create default manifolds      = true
+  set Grid to generate              = rectangle
+  set Input grid file name          = 
+  set Manifold descriptors          = 
+  set Mesh smoothing algorithm      = none
+  set Optional Point<spacedim> 1    = 0,0
+  set Optional Point<spacedim> 2    = 1,1
+  set Optional double 1             = 1.0
+  set Optional double 2             = 0.5
+  set Optional double 3             = 1.5
+  set Optional int 1                = 1
+  set Optional int 2                = 2
+  set Optional vector of dim int    = 1,1
+  set Output grid file name         = 
+end
+subsection Forcing terms
+  set IDs and component masks = 0=u
+  set IDs and expressions     = 0=1
+  set Known component names   = u
+  set Used constants          = 
+end
+subsection Neumann boundary conditions
+  set IDs and component masks = 
+  set IDs and expressions     = 
+  set Known component names   = u
+  set Used constants          = 
+end
+subsection Output Parameters
+  set Files to save in run directory = 
+  set Incremental run prefix         = 
+  set Output format                  = vtu
+  set Output partitioning            = false
+  set Problem base name              = solution
+  set Solution names                 = u
+  set Subdivisions                   = 1
+end
+subsection PDE Assembler
+  set Adaptive refinement                            = true
+  set Initial global refinement                      = 3
+  set Print some useful informations about processes = true
+  set Use direct solver if available                 = true
+end
+subsection Poisson problem
+  set Blocking of the finite element = u
+  set Finite element space           = FESystem[FE_Q(1)]
+end
+subsection Refinement
+  set Bottom fraction                        = 0.100000
+  set Maximum number of cells (if available) = 0
+  set Order (optimize)                       = 2
+  set Refinement strategy                    = fraction
+  set Top fraction                           = 0.300000
+end
+subsection Time derivative of Dirichlet boundary conditions
+  set IDs and component masks = 
+  set IDs and expressions     = 
+  set Known component names   = u
+  set Used constants          = 
+end
+subsection Zero average constraints
+  set Known component names        = u
+  set Zero average on boundary     = 
+  set Zero average on whole domain = 
+end

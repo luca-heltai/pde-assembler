@@ -225,8 +225,8 @@ void piDoMUS<dim, spacedim, LAC>::make_grid_fe()
   tria_helper.make_grid();
   triangulation = tria_helper.get_tria();
   dof_handler = SP(new DoFHandler<dim, spacedim>(*triangulation));
-  signals.postprocess_newly_created_triangulation(triangulation);
-  fe = SP(interface.pfe());
+  signals.postprocess_newly_created_triangulation(triangulation.get());
+  fe = interface.pfe();
   triangulation->refine_global (initial_global_refinement);
   signals.end_make_grid_fe();
 }

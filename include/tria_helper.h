@@ -23,28 +23,22 @@ public:
   /**
     * constructor
     */
-#ifdef DEAL_II_WITH_MPI
-  TriaHelper(const MPI_Comm comm=MPI_COMM_WORLD);
-  ~TriaHelper();
-#else
-  TriaHelper();
-#endif
+  TriaHelper(const MPI_Comm &comm=MPI_COMM_WORLD);
 
   /**
-   * @brief generate the triangulation according to the LAC::TriaType
+   * @brief Generate the triangulation according to the LAC::TriaType
    * and set the corresponding shared_ptr
    */
   void make_grid();
 
   /**
-   * @brief return a pointer to the triangulation
+   * @brief Return a pointer to the triangulation
    */
-  Triangulation<dim,spacedim> *get_tria() const;
+  std::shared_ptr<Triangulation<dim,spacedim> > get_tria() const;
 
 private:
-#ifdef DEAL_II_WITH_MPI
-  MPI_Comm comm;
-#endif
+
+  const MPI_Comm &comm;
   ParsedGridGenerator<dim, spacedim>   pgg;
   std::shared_ptr<Triangulation<dim,spacedim> > p_serial;
 
