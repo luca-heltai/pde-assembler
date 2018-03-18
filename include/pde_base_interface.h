@@ -13,7 +13,6 @@
 #include <deal2lkit/parsed_finite_element.h>
 #include <deal2lkit/parsed_data_out.h>
 
-
 #include "copy_data.h"
 #include "lac/lac_type.h"
 #include "simulator_access.h"
@@ -21,7 +20,6 @@
 
 //forward declaration
 template <int dim, int spacedim, typename LAC> struct Signals;
-
 
 using namespace pidomus;
 /**
@@ -78,7 +76,7 @@ using namespace pidomus;
  * "get_solution()", "get_locally_relevant_solution()", "get_time()".
  */
 template <int dim,int spacedim=dim, typename LAC=LATrilinos>
-class PDEBaseInterface : public ParameterAcceptor, public PDEAssemblerAcces<dim,spacedim,LAC>
+class PDEBaseInterface : public deal2lkit::ParameterAcceptor, public PDEAssemblerAcces<dim,spacedim,LAC>
 {
 
 public:
@@ -98,14 +96,11 @@ public:
    * components and a string were the block of differential and
    * algebraic components are specified.
    */
-  PDEBaseInterface(const std::string &name="",
-                   const unsigned int &n_comp=1,
-                   const std::vector<std::string> &matrices_names=
-                     std::vector<std::string>({"system"}),
-                   const std::vector<std::string> &solution_names=
-                     std::vector<std::string>({"solution"}),
-                   const std::string &default_fe="FE_Q(1)",
-                   const std::string &default_component_names="u");
+  PDEBaseInterface(const std::string &pde_name="",
+                   const std::vector<std::string> &component_names= {"u"},
+                   const std::vector<std::string> &matrices_names= {"system"},
+                   const std::vector<std::string> &solution_names= {"solution"},
+                   const std::string &default_fe="FE_Q(1)");
   /**
    * Set the dimension of coupling consistenly with the number of
    * components and matrices set in the constructor.  This function
@@ -142,16 +137,6 @@ public:
    * this function.
    */
   virtual void solution_preprocessing (FEValuesCache<dim,spacedim> &scratch) const;
-
-  /**
-   * This function is called inside the output_step of pi-DoMUS and
-   * defines what is stored/printed. By default it stores the solution
-   * and solution_dot in file with extension parsed in the parameter
-   * file. If you need to perform post-processing on the solution you
-   * must override this function.
-   */
-  virtual void output_solution (const std::string &suffix="") const;
-
 
   /**
    * Update the internally stored parameters and coefficients.
@@ -212,10 +197,9 @@ public:
                                                CopyData &data) const;
 
   /**
-   * Call the reinit of the dealii::FEValues with the given cell, and
-   * cache the local solution, solution_dot and explicit_solution, and
-   * properly sets the independent degrees of freedom to work with
-   * Sacado.
+   * Call the reinit method of the dealii::FEValues with the given cell, and
+   * cache the local solution, solution_dot and explicit_solution, and properly
+   * sets the independent degrees of freedom to work with Sacado.
    */
   template<typename Number>
   void reinit(const Number &alpha,
@@ -223,10 +207,9 @@ public:
               FEValuesCache<dim,spacedim> &fe_cache) const;
 
   /**
-   * Call the reinit of the dealii::FEFaceValues with the given cell,
-   * and cache the local solution, solution_dot and explicit_solution,
-   * and properly sets the independent degrees of freedom to work with
-   * Sacado.
+   * Call the reinit method of the dealii::FEFaceValues with the given cell,
+   * and cache the local solution, solution_dot and explicit_solution, and
+   * properly sets the independent degrees of freedom to work with Sacado.
    */
   template<typename Number>
   void reinit(const Number &alpha,
@@ -323,6 +306,22 @@ public:
 
   virtual void estimate_error_per_cell(Vector<float> &estimated_error) const;
 
+
+  /**
+   * The names of the components for this pde.
+   */
+  const std::vector<std::string> component_names;
+
+  /**
+   * Names of independent vectors needed for residuals and energies.
+   */
+  const std::vector<std::string> matrices_names;
+
+  /**
+   * Names of independent vectors needed for residuals and energies.
+   */
+  const std::vector<std::string> solution_names;
+
   /**
    * Number of components
    */
@@ -337,6 +336,11 @@ public:
    * Number of independent vectors needed for residuals and energies.
    */
   const unsigned int n_vectors;
+
+  /**
+   * What to use as a default finite element.
+   */
+  const std::string default_fe_name;
 
   /**
    * Number of vectors that only appear explicitly;
@@ -370,16 +374,6 @@ public:
   mutable std::vector<typename LAC::VectorType *> passive_vectors;
 
   /**
-   * Names of independent vectors needed for residuals and energies.
-   */
-  const std::vector<std::string> matrices_names;
-
-  /**
-   * Names of independent vectors needed for residuals and energies.
-   */
-  const std::vector<std::string> solution_names;
-
-  /**
    * Arbitrary parameters for the pde (like, for example, time/stability constants/etc).
    */
   mutable std::map<std::string, double> current_parameters;
@@ -404,18 +398,13 @@ public:
    */
   std::map<std::string, unsigned int> solution_index;
 
-  /**
-   * ParsedFiniteElement.
-   */
-  ParsedFiniteElement<dim,spacedim> pfe;
-
 protected:
 
   void build_couplings();
 
   /**
    * Define the coupling of each matrix among its blocks.  By default it
-   * sets a fully coupling among each block.  If you want to specify the
+   * sets a full coupling among each block.  If you want to specify the
    * coupling you need to override this function and implement it
    * according to the following example
    * @code
@@ -438,20 +427,11 @@ protected:
    */
   Table<2, DoFTools::Coupling> to_coupling(const std::vector<std::vector<unsigned int> > &table) const;
 
-  std::string str_diff_comp;
-
-  std::vector<unsigned int> _diff_comp;
-
   unsigned int dofs_per_cell;
   unsigned int n_q_points;
   unsigned int n_face_q_points;
 
   std::vector<Table<2,DoFTools::Coupling> > matrix_couplings;
-
-  mutable ParsedDataOut<dim, spacedim>            data_out;
-
-  mutable std::string stepper;
-
 };
 
 template <int dim, int spacedim, typename LAC>
@@ -461,7 +441,7 @@ PDEBaseInterface<dim,spacedim,LAC>::reinit(const Number &,
                                            const typename DoFHandler<dim,spacedim>::active_cell_iterator &cell,
                                            FEValuesCache<dim,spacedim> &fe_cache) const
 {
-  Number dummy;
+  Number dummy = 0;
   double double_dummy = 0;
   fe_cache.reinit(cell);
   fe_cache.cache_local_solution_vectors(passive_vector_names, passive_vectors, double_dummy);
@@ -477,8 +457,8 @@ PDEBaseInterface<dim,spacedim,LAC>::reinit(const Number &,
                                            const unsigned int face_no,
                                            FEValuesCache<dim,spacedim> &fe_cache) const
 {
-  Number dummy;
-  double double_dummy;
+  Number dummy = 0;
+  double double_dummy = 0;
   fe_cache.reinit(cell, face_no);
   fe_cache.cache_local_solution_vectors(passive_vector_names, passive_vectors, double_dummy);
   fe_cache.cache_local_solution_vectors(active_vector_names, active_vectors, dummy);

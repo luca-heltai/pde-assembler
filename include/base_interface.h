@@ -78,7 +78,7 @@ using namespace pidomus;
  * "get_solution()", "get_locally_relevant_solution()", "get_time()".
  */
 template <int dim,int spacedim=dim, typename LAC=LATrilinos>
-class BaseInterface : public ParameterAcceptor, public SimulatorAccess<dim,spacedim,LAC>
+class BaseInterface : public deal2lkit::ParameterAcceptor, public SimulatorAccess<dim,spacedim,LAC>
 {
 
 public:

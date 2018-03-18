@@ -55,13 +55,15 @@ public:
    * Pass initializers to the base class constructor.
    */
   PDEAssemblerPDESystemInterface(const std::string &name="",
-                                 const unsigned int &n_components=1,
-                                 const std::vector<std::string> matrix_names=std::vector<std::string>({"system"}),
-                                 const std::vector<std::string> solution_names=std::vector<std::string>({"solution"}),
-                                 const std::string &default_fe="FE_Q(1)",
-                                 const std::string &default_component_names="u") :
-    PDEBaseInterface<dim,spacedim,LAC>(name, n_components,matrix_names,solution_names,
-                                       default_fe, default_component_names)
+                                 const std::vector<std::string> &component_names=std::vector<std::string>({"u"}),
+                                 const std::vector<std::string> &matrix_names=std::vector<std::string>({"system"}),
+                                 const std::vector<std::string> &solution_names=std::vector<std::string>({"solution"}),
+                                 const std::string &default_fe="FE_Q(1)") :
+    PDEBaseInterface<dim,spacedim,LAC>(name,
+                                       component_names,
+                                       matrix_names,
+                                       solution_names,
+                                       default_fe)
   {
     static_cast<Implementation *>(this)->init();
   }

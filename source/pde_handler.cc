@@ -39,23 +39,14 @@
 using namespace dealii;
 using namespace deal2lkit;
 
-
-// This file contains the implementation of:
-// - constructor
-// - run()
-// - make_grid_fe()
-// - setup_dofs()
-// - solve_jacobian_system()
-//
-
 template <int dim, int spacedim, typename LAC>
 PDEHandler<dim, spacedim, LAC>::PDEHandler (const std::string &name,
-                                            const PDEBaseInterface<dim, spacedim, LAC> &interface,
+                                            const PDEBaseInterface<dim, spacedim, LAC> &pde,
                                             const MPI_Comm &communicator)
   :
   ParameterAcceptor(name),
   comm(communicator),
-  interface(interface),
+  pde(pde),
   pcout (std::cout,
          (Utilities::MPI::this_mpi_process(comm)
           == 0)),
@@ -64,32 +55,36 @@ PDEHandler<dim, spacedim, LAC>::PDEHandler (const std::string &name,
 
   pgr("Refinement"),
 
-  constraints(interface.n_matrices),
+  pfe(pde.get_section_name(), pde.default_fe_name,
+      pde.get_component_names(),pde.n_components),
 
-  n_matrices(interface.n_matrices),
+  constraints(pde.n_matrices),
+
+  data_out("Output Parameters", "none"),
+
+  n_matrices(pde.n_matrices),
 
   forcing_terms("Forcing terms",
-                interface.n_components,
-                interface.get_component_names(), ""),
+                pde.n_components,
+                pde.get_component_names(), ""),
   neumann_bcs("Neumann boundary conditions",
-              interface.n_components,
-              interface.get_component_names(), ""),
+              pde.n_components,
+              pde.get_component_names(), ""),
   dirichlet_bcs("Dirichlet boundary conditions",
-                interface.n_components,
-                interface.get_component_names(), "0=ALL"),
+                pde.n_components,
+                pde.get_component_names(), "0=ALL"),
   dirichlet_bcs_dot("Time derivative of Dirichlet boundary conditions",
-                    interface.n_components,
-                    interface.get_component_names(), ""),
+                    pde.n_components,
+                    pde.get_component_names(), ""),
 
   zero_average("Zero average constraints",
-               interface.n_components,
-               interface.get_component_names() ),
-
+               pde.n_components,
+               pde.get_component_names() ),
 
   we_are_parallel(Utilities::MPI::n_mpi_processes(comm) > 1)
 {
 
-  interface.initialize_simulator (*this);
+  pde.initialize_simulator (*this);
 
   constraints[0] = SP(new ConstraintMatrix());
 
@@ -102,7 +97,7 @@ PDEHandler<dim, spacedim, LAC>::PDEHandler (const std::string &name,
       matrix_sparsities.push_back( SP( new typename LAC::BlockSparsityPattern() ) );
     }
 
-  for (unsigned int i=0; i<interface.n_vectors; ++i)
+  for (unsigned int i=0; i<pde.n_vectors; ++i)
     {
       solutions.push_back(SP(new typename LAC::VectorType()));
       locally_relevant_solutions.push_back(SP(new typename LAC::VectorType()));
@@ -112,7 +107,7 @@ PDEHandler<dim, spacedim, LAC>::PDEHandler (const std::string &name,
 template<int dim, int spacedim, typename LAC>
 void PDEHandler<dim,spacedim,LAC>::init()
 {
-  interface.connect_to_signals();
+  pde.connect_to_signals();
   make_grid_fe();
   setup_dofs(true);
   constraints[0]->distribute(*solutions[0]);
@@ -127,7 +122,7 @@ void PDEHandler<dim, spacedim, LAC>::make_grid_fe()
   triangulation = tria_helper.get_tria();
   dof_handler = SP(new DoFHandler<dim, spacedim>(*triangulation));
   signals.postprocess_newly_created_triangulation(triangulation.get());
-  fe = interface.pfe();
+  fe = pfe();
   triangulation->refine_global (initial_global_refinement);
   signals.end_make_grid_fe();
 }
@@ -139,12 +134,12 @@ void PDEHandler<dim, spacedim, LAC>::setup_dofs (const bool &first_run)
 {
   auto _timer = computing_timer.scoped_timer("Setup dof systems");
   signals.begin_setup_dofs();
-  std::vector<unsigned int> sub_blocks = interface.pfe.get_component_blocks();
+  std::vector<unsigned int> sub_blocks = pfe.get_component_blocks();
   dof_handler->distribute_dofs (*fe);
   DoFRenumbering::component_wise (*dof_handler, sub_blocks);
 
   dofs_per_block.clear();
-  dofs_per_block.resize(interface.pfe.n_blocks());
+  dofs_per_block.resize(pfe.n_blocks());
 
   DoFTools::count_dofs_per_block (*dof_handler, dofs_per_block,
                                   sub_blocks);
@@ -171,14 +166,14 @@ void PDEHandler<dim, spacedim, LAC>::setup_dofs (const bool &first_run)
   IndexSet relevant_set;
   {
     global_partitioning = dof_handler->locally_owned_dofs();
-    for (unsigned int i = 0; i < interface.pfe.n_blocks(); ++i)
+    for (unsigned int i = 0; i < pfe.n_blocks(); ++i)
       partitioning.push_back(global_partitioning.get_view( std::accumulate(dofs_per_block.begin(), dofs_per_block.begin() + i, 0),
                                                            std::accumulate(dofs_per_block.begin(), dofs_per_block.begin() + i + 1, 0)));
 
     DoFTools::extract_locally_relevant_dofs (*dof_handler,
                                              relevant_set);
 
-    for (unsigned int i = 0; i < interface.pfe.n_blocks(); ++i)
+    for (unsigned int i = 0; i < pfe.n_blocks(); ++i)
       relevant_partitioning.push_back(relevant_set.get_view(std::accumulate(dofs_per_block.begin(), dofs_per_block.begin() + i, 0),
                                                             std::accumulate(dofs_per_block.begin(), dofs_per_block.begin() + i + 1, 0)));
   }
@@ -191,7 +186,7 @@ void PDEHandler<dim, spacedim, LAC>::setup_dofs (const bool &first_run)
                                    comm);
 
   AssertDimension(solutions.size(), locally_relevant_solutions.size());
-  AssertDimension(solutions.size(), interface.n_vectors);
+  AssertDimension(solutions.size(), pde.n_vectors);
   for (unsigned int i=0; i<solutions.size(); ++i)
     {
       initializer(*solutions[i]);
@@ -207,12 +202,12 @@ void PDEHandler<dim, spacedim, LAC>::setup_dofs (const bool &first_run)
       initializer(*matrix_sparsities[i],
                   *dof_handler,
                   *constraints[i],
-                  interface.get_matrix_coupling(i));
+                  pde.get_matrix_coupling(i));
       matrices[i]->reinit(*matrix_sparsities[i]);
     }
 
-//  if (first_run)
-//    {
+  if (first_run)
+    {
 //      if (fe->has_support_points())
 //        {
 //          VectorTools::interpolate(interface.get_interpolate_mapping(), *dof_handler, initial_solution, solution);
@@ -244,7 +239,7 @@ void PDEHandler<dim, spacedim, LAC>::setup_dofs (const bool &first_run)
 //      signals.fix_initial_conditions(solution, solution_dot);
 //      locally_relevant_explicit_solution = solution;
 
-//    }
+    }
   signals.end_setup_dofs();
 }
 
@@ -266,7 +261,7 @@ apply_neumann_bcs (
       unsigned int face_id = cell->face(face)->boundary_id();
       if (cell->face(face)->at_boundary() && neumann_bcs.acts_on_id(face_id))
         {
-          interface.reinit(dummy, cell, face, scratch);
+          pde.reinit(dummy, cell, face, scratch);
 
           auto &fev = scratch.get_current_fe_values();
           auto &q_points = scratch.get_quadrature_points();
@@ -274,11 +269,11 @@ apply_neumann_bcs (
 
           for (unsigned int q=0; q<q_points.size(); ++q)
             {
-              Vector<double> T(interface.n_components);
+              Vector<double> T(pde.n_components);
               neumann_bcs.get_mapped_function(face_id)->vector_value(q_points[q], T);
 
               for (unsigned int i=0; i<local_residual.size(); ++i)
-                for (unsigned int c=0; c<interface.n_components; ++c)
+                for (unsigned int c=0; c<pde.n_components; ++c)
                   local_residual[i] -= T[c]*fev.shape_value_component(i,q,c)*JxW[q];
 
             }// end loop over quadrature points
@@ -304,14 +299,14 @@ apply_forcing_terms (const typename DoFHandler<dim,spacedim>::active_cell_iterat
   if (forcing_terms.acts_on_id(cell_id))
     {
       double dummy = 0.0;
-      interface.reinit(dummy, cell, scratch);
+      pde.reinit(dummy, cell, scratch);
 
       auto &fev = scratch.get_current_fe_values();
       auto &q_points = scratch.get_quadrature_points();
       auto &JxW = scratch.get_JxW_values();
       for (unsigned int q=0; q<q_points.size(); ++q)
         for (unsigned int i=0; i<local_residual.size(); ++i)
-          for (unsigned int c=0; c<interface.n_components; ++c)
+          for (unsigned int c=0; c<pde.n_components; ++c)
             {
               double B = forcing_terms.get_mapped_function(cell_id)->value(q_points[q],c);
               local_residual[i] -= B*fev.shape_value_component(i,q,c)*JxW[q];
@@ -329,7 +324,7 @@ apply_dirichlet_bcs (const DoFHandler<dim,spacedim> &dof_handler,
 {
   try
     {
-      bc.interpolate_boundary_values(interface.get_bc_mapping(),dof_handler,constraints);
+      bc.interpolate_boundary_values(pde.get_bc_mapping(),dof_handler,constraints);
     }
   catch (...)
     {
@@ -338,9 +333,9 @@ apply_dirichlet_bcs (const DoFHandler<dim,spacedim> &dof_handler,
                              "currently supported on deal.II in parallel settings.\n"
                              "Feel free to submit a patch :)"));
       const QGauss<dim-1> quad(fe->degree+1);
-      bc.project_boundary_values(interface.get_bc_mapping(),dof_handler,quad,constraints);
+      bc.project_boundary_values(pde.get_bc_mapping(),dof_handler,quad,constraints);
     }
-  unsigned int codim = spacedim - dim;
+  // unsigned int codim = spacedim - dim;
   // if (codim == 0)
   //   bc.compute_nonzero_normal_flux_constraints(dof_handler,interface.get_bc_mapping(),constraints);
 }
@@ -355,7 +350,7 @@ void PDEHandler<dim, spacedim, LAC>::assemble_matrices
  typename LAC::VectorType &residual_vector)
 {
   solutions = input_vectors;
-  interface.set_current_parameters_and_coefficients(parameters, coefficients);
+  pde.set_current_parameters_and_coefficients(parameters, coefficients);
 
   assemble_matrices(residual_vector);
 }
@@ -370,13 +365,13 @@ void PDEHandler<dim, spacedim, LAC>::assemble_matrices(typename LAC::VectorType 
   const QGauss<dim> quadrature_formula(fe->degree + 1);
   const QGauss < dim - 1 > face_quadrature_formula(fe->degree + 1);
 
-  FEValuesCache<dim,spacedim> fev_cache(interface.get_fe_mapping(),
+  FEValuesCache<dim,spacedim> fev_cache(pde.get_fe_mapping(),
                                         *fe, quadrature_formula,
-                                        interface.get_cell_update_flags(),
+                                        pde.get_cell_update_flags(),
                                         face_quadrature_formula,
-                                        interface.get_face_update_flags());
+                                        pde.get_face_update_flags());
 
-  interface.solution_preprocessing(fev_cache);
+  pde.solution_preprocessing(fev_cache);
 
   typedef
   FilteredIterator<typename DoFHandler<dim, spacedim>::active_cell_iterator>
@@ -405,7 +400,7 @@ void PDEHandler<dim, spacedim, LAC>::assemble_matrices(typename LAC::VectorType 
                          FEValuesCache<dim,spacedim> &scratch,
                          pidomus::CopyData & data)
   {
-    this->interface.assemble_local_matrices(cell, scratch, data);
+    this->pde.assemble_local_matrices(cell, scratch, data);
   };
 
 
@@ -439,7 +434,7 @@ PDEHandler<dim, spacedim, LAC>::residual(const std::map<std::string, double> &pa
 
   // syncronize(t,solution,solution_dot);
   solutions = input_vectors;
-  interface.set_current_parameters_and_coefficients(parameters, coefficients);
+  pde.set_current_parameters_and_coefficients(parameters, coefficients);
 
   residual(residual_vector);
 }
@@ -453,13 +448,13 @@ PDEHandler<dim, spacedim, LAC>::residual(typename LAC::VectorType &residual_vect
   const QGauss < dim - 1 > face_quadrature_formula(fe->degree + 1);
 
 
-  FEValuesCache<dim,spacedim> fev_cache(interface.get_fe_mapping(),
+  FEValuesCache<dim,spacedim> fev_cache(pde.get_fe_mapping(),
                                         *fe, quadrature_formula,
-                                        interface.get_cell_update_flags(),
+                                        pde.get_cell_update_flags(),
                                         face_quadrature_formula,
-                                        interface.get_face_update_flags());
+                                        pde.get_face_update_flags());
 
-  interface.solution_preprocessing(fev_cache);
+  pde.solution_preprocessing(fev_cache);
 
   residual_vector = 0;
 
@@ -476,7 +471,7 @@ PDEHandler<dim, spacedim, LAC>::residual(typename LAC::VectorType &residual_vect
                          FEValuesCache<dim,spacedim> &scratch,
                          pidomus::CopyData & data)
   {
-    this->interface.assemble_local_system_residual(cell,scratch,data);
+    this->pde.assemble_local_system_residual(cell,scratch,data);
     // apply conservative loads
     this->apply_forcing_terms(cell, scratch, data.local_residual);
 
@@ -591,6 +586,30 @@ void PDEHandler<dim, spacedim, LAC>::update_functions_and_constraints (const dou
   for (unsigned int i=0; i<n_matrices; ++i)
     constraints[i]->close();
 }
+
+
+template<int dim, int spacedim, typename LAC>
+void
+PDEHandler<dim,spacedim,LAC>::
+output_solution (const std::string &suffix) const
+{
+  data_out.prepare_data_output( *dof_handler,
+                                suffix);
+  auto cnames = pde.component_names;
+  for (unsigned int i=0; i<solutions.size(); ++i)
+    *locally_relevant_solutions[i] = *solutions[i];
+
+  for (unsigned int i=0; i<solutions.size(); ++i)
+    {
+      std::vector<std::string> names(cnames.size(), pde.solution_names[i]);
+      for (unsigned int j=0; j<cnames.size(); ++j)
+        names[j] += "_" + cnames[j];
+      data_out.add_data_vector (*locally_relevant_solutions[i], print(names));
+    }
+
+  data_out.write_data_and_clear(pde.get_output_mapping());
+}
+
 
 #define INSTANTIATE(dim,spacedim,LAC) \
   template class PDEHandler<dim,spacedim,LAC>;

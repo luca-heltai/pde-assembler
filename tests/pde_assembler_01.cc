@@ -29,9 +29,7 @@ template <int dim, int spacedim, typename LAC>
 Poisson<dim,spacedim, LAC>::
 Poisson():
   PDEAssemblerPDESystemInterface<dim,spacedim,Poisson<dim,spacedim,LAC>, LAC >
-  ("Poisson problem",1,std::vector<std::string>({"system"}), std::vector<std::string>({"solution"}),
-"FESystem[FE_Q(1)]",
-"u")
+  ("Poisson problem", {"u"}, {"system"}, {"solution"},"FESystem[FE_Q(1)]")
 {}
 
 
@@ -89,8 +87,8 @@ int main (int argc, char *argv[])
 
   Poisson<dim,spacedim,LADealII> poisson;
   PDEHandler<dim,spacedim,LADealII> assembler ("PDE Assembler",poisson);
-  ParameterAcceptor::initialize(SOURCE_DIR "/parameters/pde_assembler_01.prm",
-                                "used_parameters.prm");
+  deal2lkit::ParameterAcceptor::initialize(SOURCE_DIR "/parameters/pde_assembler_01.prm",
+                                           "used_parameters.prm");
 
   assembler.init();
 
@@ -114,7 +112,7 @@ int main (int argc, char *argv[])
   res *= -1;
   solver.vmult(u,res);
   assembler.constraints[0]->distribute(u);
-  poisson.output_solution();
+  assembler.output_solution();
 
   deallog << "Linfty norm of u: " << u.linfty_norm() << std::endl;
 }

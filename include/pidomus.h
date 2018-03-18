@@ -66,7 +66,7 @@ using namespace pidomus;
 template<int dim> using dim_is_one = std::integral_constant<bool, (dim==1)>;
 
 template <int dim, int spacedim = dim, typename LAC = LATrilinos>
-class piDoMUS : public ParameterAcceptor
+class piDoMUS : public deal2lkit::ParameterAcceptor
 {
   // This is a class required to make tests
   template<int fdim, int fspacedim, typename fn_LAC>

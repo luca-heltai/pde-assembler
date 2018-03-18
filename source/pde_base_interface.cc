@@ -25,26 +25,24 @@ using namespace deal2lkit;
 
 template <int dim, int spacedim, typename LAC>
 PDEBaseInterface<dim,spacedim,LAC>::
-PDEBaseInterface(const std::string &name,
-                 const unsigned int &ncomp,
+PDEBaseInterface(const std::string &pde_name,
+                 const std::vector<std::string> &component_names,
                  const std::vector<std::string> &matrices_names,
                  const std::vector<std::string> &solution_names,
-                 const std::string &default_fe,
-                 const std::string &default_component_names) :
-  ParameterAcceptor(name),
-  n_components(ncomp),
-  n_matrices(matrices_names.size()),
-  n_vectors(solution_names.size()),
+                 const std::string &default_fe_name) :
+  ParameterAcceptor(pde_name),
+  component_names(component_names),
   matrices_names(matrices_names),
   solution_names(solution_names),
-  pfe(name,default_fe,default_component_names,n_components),
-  data_out("Output Parameters", "none")
+  n_components(component_names.size()),
+  n_matrices(matrices_names.size()),
+  n_vectors(solution_names.size()),
+  default_fe_name(default_fe_name)
 {
   for (unsigned int  i=0; i<solution_names.size(); ++i)
     solution_index[solution_names[i]] = i;
   for (unsigned int  i=0; i<matrices_names.size(); ++i)
     matrix_index[matrices_names[i]] = i;
-
 }
 
 template <int dim, int spacedim, typename LAC>
@@ -99,8 +97,25 @@ PDEBaseInterface<dim,spacedim,LAC>::
 to_coupling(const std::vector<std::vector<unsigned int> > &coupling_table) const
 {
   const unsigned int nc = n_components;
-  const unsigned int nb = pfe.n_blocks();
-  const std::vector<unsigned int> component_blocks = pfe.get_component_blocks();
+  std::vector<std::string> blocks = unique(component_names);
+  const unsigned int nb = blocks.size();
+
+  std::vector<unsigned int> component_blocks(n_components);
+  unsigned int i=0, j=0;
+  for (; i<n_components; ++i)
+    {
+      if (component_names[i] == blocks[j])
+        {
+          component_blocks[i] = j;
+          ++i;
+        }
+      else
+        {
+          ++j;
+          component_blocks[i] = j;
+          Assert(component_names[i]==blocks[j], ExcInternalError());
+        }
+    }
 
   Table<2,DoFTools::Coupling> out_coupling(nc, nc);
 
@@ -142,11 +157,12 @@ void
 PDEBaseInterface<dim,spacedim,LAC>::
 set_matrix_couplings(std::vector<std::string> &str_couplings) const
 {
-  std::string ones = print(std::vector<std::string>(pfe.n_blocks(),"1"));
+  auto nb = unique(component_names).size();
+  std::string ones = print(std::vector<std::string>(nb,"1"));
 
   for (unsigned int m=0; m<n_matrices; ++m)
     {
-      for (unsigned int b=0; b<pfe.n_blocks()-1; ++b)
+      for (unsigned int b=0; b<nb-1; ++b)
         {
           str_couplings[m] += ones;
           str_couplings[m] += ";";
@@ -270,7 +286,7 @@ template <int dim, int spacedim, typename LAC>
 std::string
 PDEBaseInterface<dim,spacedim,LAC>::get_component_names() const
 {
-  return pfe.get_component_names();
+  return print(component_names);
 }
 
 
@@ -340,7 +356,7 @@ PDEBaseInterface<dim,spacedim,LAC>::get_face_update_flags() const
 
 template<int dim, int spacedim, typename LAC>
 void
-PDEBaseInterface<dim,spacedim,LAC>::declare_parameters(ParameterHandler &prm)
+PDEBaseInterface<dim,spacedim,LAC>::declare_parameters(ParameterHandler &)
 {
 }
 
@@ -361,6 +377,8 @@ void
 PDEBaseInterface<dim,spacedim,LAC>::
 estimate_error_per_cell(Vector<float> &estimated_error) const
 {
+  (void) estimated_error;
+  AssertThrow(false, ExcMessage("FIXME"));
 //  const DoFHandler<dim,spacedim> &dof = this->get_dof_handler();
 //  KellyErrorEstimator<dim,spacedim>::estimate (get_kelly_mapping(),
 //                                               dof,
@@ -380,29 +398,6 @@ PDEBaseInterface<dim,spacedim,LAC>::
 solution_preprocessing (FEValuesCache<dim,spacedim> & /*scratch*/) const
 {}
 
-template<int dim, int spacedim, typename LAC>
-void
-PDEBaseInterface<dim,spacedim,LAC>::
-output_solution (const std::string &suffix) const
-{
-  data_out.prepare_data_output( this->get_dof_handler(),
-                                suffix);
-  auto cnames = Utilities::split_string_list(get_component_names());
-  auto &vs = this->get_locally_relevant_solutions();
-  auto &us = this->get_solutions();
-  for (unsigned int i=0; i<us.size(); ++i)
-    *vs[i] = *us[i];
-
-  for (unsigned int i=0; i<n_vectors; ++i)
-    {
-      std::vector<std::string> names(cnames.size(), solution_names[i]);
-      for (unsigned int j=0; j<cnames.size(); ++j)
-        names[j] += "_" + cnames[j];
-      data_out.add_data_vector (*vs[i], print(names));
-    }
-
-  data_out.write_data_and_clear(get_output_mapping());
-}
 
 template<int dim, int spacedim, typename LAC>
 void PDEBaseInterface<dim,spacedim,LAC>::set_current_parameters_and_coefficients

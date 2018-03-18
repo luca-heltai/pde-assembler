@@ -62,7 +62,7 @@ using namespace pidomus;
 template<int dim> using dim_is_one = std::integral_constant<bool, (dim==1)>;
 
 template <int dim, int spacedim = dim, typename LAC = LATrilinos>
-class PDEHandler : public ParameterAcceptor
+class PDEHandler : public deal2lkit::ParameterAcceptor
 {
   // This is a class required to make tests
   template<int fdim, int fspacedim, typename fn_LAC>
@@ -78,7 +78,7 @@ public:
    * @param comm
    */
   PDEHandler (const std::string &name,
-              const PDEBaseInterface<dim, spacedim, LAC> &energy,
+              const PDEBaseInterface<dim, spacedim, LAC> &pde,
               const MPI_Comm &comm = MPI_COMM_WORLD);
 
   /**
@@ -162,6 +162,8 @@ public:
   void make_grid_fe();
   void setup_dofs (const bool &first_run = true);
 
+  void output_solution(const std::string &suffix="") const;
+
   void assemble_matrices (const std::map<std::string, double>         &parameters,
                           const std::vector<double>                   &coefficients,
                           const std::vector<std::shared_ptr<typename LAC::VectorType>>  &input_vectors,
@@ -175,16 +177,16 @@ public:
 
   typename LAC::VectorType &v(const std::string &vec_name) const
   {
-    Assert(interface.solution_index.find(vec_name) != interface.solution_index.end(),
+    Assert(pde.solution_index.find(vec_name) != pde.solution_index.end(),
            ExcMessage("Vector not found"));
-    return *solutions[interface.solution_index.at(vec_name)];
+    return *solutions[pde.solution_index.at(vec_name)];
   }
 
   typename LAC::BlockMatrix &m(const std::string &matrix_name) const
   {
-    Assert(interface.matrix_index.find(matrix_name) != interface.matrix_index.end(),
+    Assert(pde.matrix_index.find(matrix_name) != pde.matrix_index.end(),
            ExcMessage("Matrix not found"));
-    return *matrices[interface.matrix_index.at(matrix_name)];
+    return *matrices[pde.matrix_index.at(matrix_name)];
   }
 
   template<int odim=dim>
@@ -213,7 +215,7 @@ public:
 
   const MPI_Comm &comm;
 
-  const PDEBaseInterface<dim, spacedim, LAC>    &interface;
+  const PDEBaseInterface<dim, spacedim, LAC>    &pde;
 
   ConditionalOStream        pcout;
 
@@ -221,6 +223,7 @@ public:
   std::shared_ptr<Triangulation<dim,spacedim> >   triangulation;
   ParsedGridRefinement  pgr;
 
+  ParsedFiniteElement<dim,spacedim>                    pfe;
   std::shared_ptr<FiniteElement<dim, spacedim> >       fe;
   std::shared_ptr<DoFHandler<dim, spacedim> >          dof_handler;
 
@@ -228,6 +231,7 @@ public:
 
   std::vector<LinearOperator<typename LAC::VectorType>> operators;
 
+  mutable ParsedDataOut<dim, spacedim> data_out;
   //// current time
 public:
   /**
@@ -330,7 +334,7 @@ PDEHandler<dim, spacedim, LAC>::refine_mesh()
     {
       Vector<float> estimated_error_per_cell (triangulation->n_active_cells());
 
-      interface.estimate_error_per_cell(estimated_error_per_cell);
+      pde.estimate_error_per_cell(estimated_error_per_cell);
 
       pgr.mark_cells(estimated_error_per_cell, *triangulation);
     }
@@ -403,6 +407,9 @@ refine_and_transfer_solutions(std::vector<shared_ptr<LADealII::VectorType>> &y,
                               bool adaptive_refinement)
 {
   signals.begin_refine_and_transfer_solutions();
+  (void) adaptive_refinement;
+  (void) y;
+  AssertThrow(false, ExcMessage("FIXME"));
 //  SolutionTransfer<dim, LADealII::VectorType, DoFHandler<dim,spacedim> > sol_tr(*dof_handler);
 
 //  std::vector<LADealII::VectorType> old_sols (3);
