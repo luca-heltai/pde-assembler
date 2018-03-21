@@ -1,6 +1,15 @@
 #ifndef pde_base_interface_h_
 #define pde_base_interface_h_
 
+#include "copy_data.h"
+#include "pde_handler_access.h"
+#include "lac/lac_type.h"
+
+#include <deal2lkit/parsed_finite_element.h>
+#include <deal2lkit/parsed_data_out.h>
+#include <deal2lkit/fe_values_cache.h>
+#include <deal2lkit/parsed_dirichlet_bcs.h>
+
 #include <deal.II/lac/linear_operator.h>
 #include <deal.II/lac/linear_operator.h>
 #include <deal.II/lac/block_linear_operator.h>
@@ -10,49 +19,34 @@
 
 #include <deal.II/numerics/error_estimator.h>
 
-#include <deal2lkit/parsed_finite_element.h>
-#include <deal2lkit/parsed_data_out.h>
-
-#include "copy_data.h"
-#include "lac/lac_type.h"
-#include "simulator_access.h"
-#include "pde_assembler_access.h"
-
 //forward declaration
 template <int dim, int spacedim, typename LAC> struct Signals;
 
 using namespace pidomus;
+using namespace deal2lkit;
 /**
- * PDE Base Interface
+ * PDE Base Interface.
  *
- * *Goal*: provide a derivable interface to solve a particular PDE
- * System (time dependent, first-order, non linear).
+ * Provides an unified interface to fill the local (cell-wise) contributions of
+ * all matrices and residuals required for the definition of the problem.
  *
- * *Interface*: provide some default implementations of the standard
- * requirements for Systems of PDEs (finite element definition,
- * boundary and initial conditions, etc.) and provides an unified
- * interface to fill the local (cell-wise) contributions of all
- * matrices and residuals required for the definition of the problem.
+ * The underlying PDEHandler driver uses TBB and MPI to assemble matrices and
+ * vectors, and calls the virtual methods assemble_local_matrices() and
+ * assemble_local_residuals() of this class. If the user wishes to maximise
+ * efficiency, then these methods can be directly overloaded by a user class,
+ * that manually assembles the local matrices.
  *
- * The underlying pi-DoMUS driver uses TBB and MPI to assemble
- * matrices and vectors, and calls the virtual methods
- * assemble_local_matrices() and assemble_local_residuals() of this
- * class. If the user wishes to maximise efficiency, then these
- * methods can be directly overloaded.
- *
- * Their default implementation exploit the Sacado package of the
- * Trilinos library to automatically compute the local matrices taking
- * the derivative of residuals and the hessian of the energies
- * supplied by the assemble_energies_and_residuals() method. This
- * method is overloaded for different types, and since these types
- * cannot be inherited by derived classes using template arguments,
- * the Curiously recurring template pattern strategy (CRTP) or F-bound
- * polymorphism
- * (https://en.wikipedia.org/wiki/Curiously_recurring_template_pattern)
- * is used to allow the implementation in user derived classes of a
- * single templated function energies_and_residuals() that is
- * statically linked and called insied the method
- * PDESystemInterface::assemble_energies_and_residuals().
+ * The default implementation exploit the Sacado package of the Trilinos
+ * library to automatically compute the local matrices taking the derivative of
+ * residuals and the hessian of the energies supplied by the
+ * assemble_energies_and_residuals() method. This method is overloaded for
+ * different types, and since these types cannot be inherited by derived
+ * classes using template arguments, the Curiously recurring template pattern
+ * strategy (CRTP) or F-bound polymorphism
+ * (https://en.wikipedia.org/wiki/Curiously_recurring_template_pattern) is used
+ * to allow the implementation in user derived classes of a single templated
+ * function energies_and_residuals() that is statically linked and called
+ * inside the method PDESystemInterface::assemble_energies_and_residuals().
  *
  * The user can directly overload the methods of this class (which
  * cannot be templated), or derive their classes from PDESystemInterface
@@ -70,19 +64,20 @@ using namespace pidomus;
  * The class PDESystemInterface is derived from PDEBaseInterface, and implements
  * CRTP.
  *
- * PDEBaseInterface derives from SimulatorAccess class, which stores a reference to
- * the simulator (i.e. pi-DoMUS) where the specific pde system is solved.
- * Each variable inside the simulator can be accessed with a function
- * "get_solution()", "get_locally_relevant_solution()", "get_time()".
+ * PDEBaseInterface derives from PDEHandlerAccess class, which stores a
+ * reference to the PDEHandler. Each variable inside the simulator can be
+ * accessed via getter functions of the PDEHandlerAccess helper.
+ *
+ * @authors Luca Heltai, Alberto Sartori, 2016
  */
 template <int dim,int spacedim=dim, typename LAC=LATrilinos>
-class PDEBaseInterface : public deal2lkit::ParameterAcceptor, public PDEAssemblerAcces<dim,spacedim,LAC>
+class PDEBaseInterface : public deal2lkit::ParameterAcceptor, public PDEHandlerAccess<dim,spacedim,LAC>
 {
 
 public:
 
   /**
-   * virtual destructor.
+   * Virtual destructor. Does nothing, but guarantees that no leak is left over.
    */
   virtual ~PDEBaseInterface() {}
 
@@ -90,17 +85,17 @@ public:
   /** @{ */
 
   /**
-   * Constructor. It takes the name of the subsection within the
-   * parameter file, the number of components, the number of matrices,
-   * the finite element used to discretize the system, the name of the
-   * components and a string were the block of differential and
-   * algebraic components are specified.
+   * Constructor. It takes the name of the subsection within the parameter
+   * file, the number of components, the number of matrices, the finite element
+   * used to discretize the system, the name of the components and a string
+   * were the block of differential and algebraic components are specified.
    */
   PDEBaseInterface(const std::string &pde_name="",
                    const std::vector<std::string> &component_names= {"u"},
                    const std::vector<std::string> &matrices_names= {"system"},
                    const std::vector<std::string> &solution_names= {"solution"},
                    const std::string &default_fe="FE_Q(1)");
+
   /**
    * Set the dimension of coupling consistenly with the number of
    * components and matrices set in the constructor.  This function
@@ -123,33 +118,32 @@ public:
    *            y_dot=0;
    *          });
    * @endcode
-   *
-   * An example of implementation is given in the poisson_problem_signals.h file.
    */
   virtual void connect_to_signals() const;
 
   /**
-   * Solution preprocessing. This function can be used to store
-   * variables, which are needed during the assembling of energies and
-   * residuals, that cannot be computed there (e.g., GLOBAL
-   * variables). The variables must be stored inside the AnyData of
-   * the passed FEValuescache. You may want to use a WorkStream inside
-   * this function.
+   * Solution preprocessing. This function can be used to store abitrary
+   * variables needed during the assembling of energies and residuals, that
+   * cannot be computed there (e.g., GLOBAL variables). The variables must be
+   * stored inside the AnyData of the passed FEValuescache.
+   *
+   * You may want to use a WorkStream inside this function.
    */
   virtual void solution_preprocessing (FEValuesCache<dim,spacedim> &scratch) const;
 
   /**
-   * Update the internally stored parameters and coefficients.
+   * Update the internally stored coefficients for the computation of the Jacobian.
    *
-   * The parameters can be used by the pde arbitrarily, while the coefficients
-   * are used to compute the Jacobian system, and to distinguish between active
-   * and passive vectors.
+   * This class assumes that the Jacobian is the sum of the Hessian of the
+   * energy, w.r.t. the solution vectors, each scaled with a coefficient.
    *
-   * @param parameters
-   * @param coefficients
+   * The coefficients are used to distinguish between active and passive
+   * vectors. If a coefficient is zero, then the Jacobian does not depend on
+   * that component (i.e., that component is an *explicit* component).
+   *
+   * @author Luca Heltai, 2018.
    */
-  virtual void set_current_parameters_and_coefficients(const std::map<std::string, double> &parameters,
-                                                       const std::vector<double> &coefficients) const;
+  virtual void set_jacobian_coefficients(const std::vector<double> &coefficients) const;
 
 
   /** @name Functions dedicated to assemble system and preconditioners */
@@ -198,8 +192,8 @@ public:
 
   /**
    * Call the reinit method of the dealii::FEValues with the given cell, and
-   * cache the local solution, solution_dot and explicit_solution, and properly
-   * sets the independent degrees of freedom to work with Sacado.
+   * cache all solution vectors, while properly initializing the independent
+   * degrees of freedom to work with Sacado.
    */
   template<typename Number>
   void reinit(const Number &alpha,
@@ -208,26 +202,32 @@ public:
 
   /**
    * Call the reinit method of the dealii::FEFaceValues with the given cell,
-   * and cache the local solution, solution_dot and explicit_solution, and
-   * properly sets the independent degrees of freedom to work with Sacado.
+   * and cache all solution vectors, while properly initializing the
+   * independent degrees of freedom to work with Sacado.
    */
   template<typename Number>
   void reinit(const Number &alpha,
               const typename DoFHandler<dim,spacedim>::active_cell_iterator &cell,
-              const unsigned int face_no,
+              const unsigned int &face_no,
               FEValuesCache<dim,spacedim> &fe_cache) const;
 
 
+  /**
+   * Call the reinit method of the dealii::FESubFaceValues with the given cell,
+   * and cache all solution vectors, while properly initializing the
+   * independent degrees of freedom to work with Sacado.
+   */
+  template<typename Number>
+  void reinit(const Number &alpha,
+              const typename DoFHandler<dim,spacedim>::active_cell_iterator &cell,
+              const unsigned int &face_no,
+              const unsigned int &subface_no,
+              FEValuesCache<dim,spacedim> &fe_cache) const;
   /** @} */
 
 
   /** @name Functions dedicated to set properties of the interface */
   /** @{ */
-
-  /**
-   * Declare parameters.
-   */
-  virtual void declare_parameters (ParameterHandler &prm);
 
   /**
    * Return the mapping used when no different mapping has been
@@ -266,12 +266,12 @@ public:
   /**
    * Return the mapping to use with interpolation of functions..
    */
-  virtual const Mapping<dim,spacedim> &get_interpolate_mapping() const;
+  virtual const Mapping<dim,spacedim> &get_interpolation_mapping() const;
 
   /**
    * Return the mapping to use with projection of functions...
    */
-  virtual const Mapping<dim,spacedim> &get_project_mapping() const;
+  virtual const Mapping<dim,spacedim> &get_projection_mapping() const;
 
   /**
    * This function is called in order to know what are the update flags
@@ -374,11 +374,6 @@ public:
   mutable std::vector<typename LAC::VectorType *> passive_vectors;
 
   /**
-   * Arbitrary parameters for the pde (like, for example, time/stability constants/etc).
-   */
-  mutable std::map<std::string, double> current_parameters;
-
-  /**
    * The coefficients to use when computing derivatives.
    */
   mutable std::vector<double> current_coefficients;
@@ -427,12 +422,12 @@ protected:
    */
   Table<2, DoFTools::Coupling> to_coupling(const std::vector<std::vector<unsigned int> > &table) const;
 
-  unsigned int dofs_per_cell;
-  unsigned int n_q_points;
-  unsigned int n_face_q_points;
-
   std::vector<Table<2,DoFTools::Coupling> > matrix_couplings;
 };
+
+
+
+// Template and inline functions
 
 template <int dim, int spacedim, typename LAC>
 template<typename Number>
@@ -449,17 +444,36 @@ PDEBaseInterface<dim,spacedim,LAC>::reinit(const Number &,
 }
 
 
+
 template <int dim, int spacedim, typename LAC>
 template<typename Number>
 void
 PDEBaseInterface<dim,spacedim,LAC>::reinit(const Number &,
                                            const typename DoFHandler<dim,spacedim>::active_cell_iterator &cell,
-                                           const unsigned int face_no,
+                                           const unsigned int &face_no,
                                            FEValuesCache<dim,spacedim> &fe_cache) const
 {
   Number dummy = 0;
   double double_dummy = 0;
   fe_cache.reinit(cell, face_no);
+  fe_cache.cache_local_solution_vectors(passive_vector_names, passive_vectors, double_dummy);
+  fe_cache.cache_local_solution_vectors(active_vector_names, active_vectors, dummy);
+}
+
+
+
+template <int dim, int spacedim, typename LAC>
+template<typename Number>
+void
+PDEBaseInterface<dim,spacedim,LAC>::reinit(const Number &,
+                                           const typename DoFHandler<dim,spacedim>::active_cell_iterator &cell,
+                                           const unsigned int &face_no,
+                                           const unsigned int &subface_no,
+                                           FEValuesCache<dim,spacedim> &fe_cache) const
+{
+  Number dummy = 0;
+  double double_dummy = 0;
+  fe_cache.reinit(cell, face_no, subface_no);
   fe_cache.cache_local_solution_vectors(passive_vector_names, passive_vectors, double_dummy);
   fe_cache.cache_local_solution_vectors(active_vector_names, active_vectors, dummy);
 }

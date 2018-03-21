@@ -1,18 +1,17 @@
-#ifndef _pidomus_pde_system_interface_h
-#define _pidomus_pde_system_interface_h
+#ifndef pde_system_interface_h
+#define pde_system_interface_h
 
-#include "base_interface.h"
+#include "pde_base_interface.h"
 
 using namespace deal2lkit;
 using namespace pidomus;
 
 /**
- * This is the class that users should derive from. This class
- * implements the Curiously Recursive Template algorithm (CRTP) or
- * F-bound polymorphism
- * (https://en.wikipedia.org/wiki/Curiously_recurring_template_pattern)
- * to allow users to define non virtual templated functions to fill
- * local energy densities and residuals.
+ * This is the class that users should derive from. This class implements the
+ * Curiously Recursive Template algorithm (CRTP) or F-bound polymorphism
+ * (https://en.wikipedia.org/wiki/Curiously_recurring_template_pattern) to
+ * allow users to define non virtual templated functions to fill local energy
+ * densities and residuals.
  *
  * User derived classes need only to implement the function
  * PDESystemInterface::energies_and_residuals(), which can be a templated
@@ -43,10 +42,8 @@ using namespace pidomus;
  * BaseInterface class.
  */
 template<int dim, int spacedim, class Implementation,  typename LAC=LATrilinos>
-class PDESystemInterface : public BaseInterface<dim,spacedim,LAC>
+class PDESystemInterface : public PDEBaseInterface<dim,spacedim,LAC>
 {
-
-
 public:
 
   virtual ~PDESystemInterface() {}
@@ -54,23 +51,20 @@ public:
   /**
    * Pass initializers to the base class constructor.
    */
-  PDESystemInterface(const std::string &name="",
-                     const unsigned int &n_components=0,
-                     const unsigned int &n_matrices=0,
-                     const std::string &default_fe="FE_Q(1)",
-                     const std::string &default_component_names="u",
-                     const std::string &default_differential_components="") :
-    BaseInterface<dim,spacedim,LAC>(name, n_components,n_matrices,
-                                    default_fe, default_component_names,
-                                    default_differential_components)
+  PDESystemInterface(const std::string &pde_name="",
+                     const std::vector<std::string> &component_names=std::vector<std::string>({"u"}),
+                     const std::vector<std::string> &matrix_names=std::vector<std::string>({"system"}),
+                     const std::vector<std::string> &solution_names=std::vector<std::string>({"solution"}),
+                     const std::string &default_fe="FE_Q(1)") :
+    PDEBaseInterface<dim,spacedim,LAC>(pde_name,
+                                       component_names,
+                                       matrix_names,
+                                       solution_names,
+                                       default_fe)
   {
     static_cast<Implementation *>(this)->init();
   }
 
-  virtual void declare_parameters(ParameterHandler &prm)
-  {
-    BaseInterface<dim,spacedim,LAC>::declare_parameters(prm);
-  }
 
   virtual void assemble_energies_and_residuals(const typename DoFHandler<dim,spacedim>::active_cell_iterator &cell,
                                                FEValuesCache<dim,spacedim> &scratch,
@@ -83,7 +77,6 @@ public:
         energies,
         local_residuals,
         compute_only_system_terms);
-
   }
 
 
@@ -98,7 +91,6 @@ public:
         energies,
         local_residuals,
         compute_only_system_terms);
-
   }
 
 };

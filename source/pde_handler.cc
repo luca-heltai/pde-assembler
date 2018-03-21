@@ -55,12 +55,13 @@ PDEHandler<dim, spacedim, LAC>::PDEHandler (const std::string &name,
 
   pgr("Refinement"),
 
-  pfe(pde.get_section_name(), pde.default_fe_name,
-      pde.get_component_names(),pde.n_components),
+  pfe("Finite element space", pde.default_fe_name,
+      pde.get_component_names(), pde.n_components),
 
   constraints(pde.n_matrices),
 
-  data_out("Output Parameters", "none"),
+  data_out("Output Parameters", "none", 1, pde.get_component_names(),
+           "solution", "", comm),
 
   n_matrices(pde.n_matrices),
 
@@ -73,10 +74,6 @@ PDEHandler<dim, spacedim, LAC>::PDEHandler (const std::string &name,
   dirichlet_bcs("Dirichlet boundary conditions",
                 pde.n_components,
                 pde.get_component_names(), "0=ALL"),
-  dirichlet_bcs_dot("Time derivative of Dirichlet boundary conditions",
-                    pde.n_components,
-                    pde.get_component_names(), ""),
-
   zero_average("Zero average constraints",
                pde.n_components,
                pde.get_component_names() ),
@@ -110,7 +107,6 @@ void PDEHandler<dim,spacedim,LAC>::init()
   pde.connect_to_signals();
   make_grid_fe();
   setup_dofs(true);
-  constraints[0]->distribute(*solutions[0]);
 }
 
 template <int dim, int spacedim, typename LAC>
@@ -190,10 +186,7 @@ void PDEHandler<dim, spacedim, LAC>::setup_dofs (const bool &first_run)
   for (unsigned int i=0; i<solutions.size(); ++i)
     {
       initializer(*solutions[i]);
-      if (we_are_parallel)
-        initializer.ghosted(*locally_relevant_solutions[i]);
-      else
-        initializer(*locally_relevant_solutions[i]);
+      initializer.ghosted(*locally_relevant_solutions[i]);
     }
 
   for (unsigned int i=0; i < n_matrices; ++i)
@@ -344,13 +337,12 @@ apply_dirichlet_bcs (const DoFHandler<dim,spacedim> &dof_handler,
 
 template <int dim, int spacedim, typename LAC>
 void PDEHandler<dim, spacedim, LAC>::assemble_matrices
-(const std::map<std::string, double>         &parameters,
- const std::vector<double>                   &coefficients,
+(const std::vector<double>                   &coefficients,
  const std::vector<std::shared_ptr<typename LAC::VectorType>>  &input_vectors,
  typename LAC::VectorType &residual_vector)
 {
   solutions = input_vectors;
-  pde.set_current_parameters_and_coefficients(parameters, coefficients);
+  pde.set_jacobian_coefficients(coefficients);
 
   assemble_matrices(residual_vector);
 }
@@ -423,10 +415,9 @@ void PDEHandler<dim, spacedim, LAC>::assemble_matrices(typename LAC::VectorType 
 
 template <int dim, int spacedim, typename LAC>
 void
-PDEHandler<dim, spacedim, LAC>::residual(const std::map<std::string, double> &parameters,
-                                         const std::vector<double>                                    &coefficients,
-                                         const std::vector<std::shared_ptr<typename LAC::VectorType>> &input_vectors,
-                                         typename LAC::VectorType                                     &residual_vector)
+PDEHandler<dim, spacedim, LAC>::residual(const std::vector<double>                                     &coefficients,
+                                         const std::vector<std::shared_ptr<typename LAC::VectorType> > &input_vectors,
+                                         typename LAC::VectorType                                      &residual_vector)
 {
   auto _timer = computing_timer.scoped_timer ("Residual");
 
@@ -434,7 +425,7 @@ PDEHandler<dim, spacedim, LAC>::residual(const std::map<std::string, double> &pa
 
   // syncronize(t,solution,solution_dot);
   solutions = input_vectors;
-  pde.set_current_parameters_and_coefficients(parameters, coefficients);
+  pde.set_jacobian_coefficients(coefficients);
 
   residual(residual_vector);
 }
@@ -558,7 +549,6 @@ void PDEHandler<dim, spacedim, LAC>::update_functions_and_constraints (const dou
   if (!std::isnan(t))
     {
       dirichlet_bcs.set_time(t);
-      dirichlet_bcs_dot.set_time(t);
       forcing_terms.set_time(t);
       neumann_bcs.set_time(t);
     }

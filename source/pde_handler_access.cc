@@ -2,27 +2,27 @@
 #include "pidomus_macros.h"
 
 template <int dim, int spacedim, typename LAC>
-PDEAssemblerAcces<dim,spacedim,LAC>::PDEAssemblerAcces ()
+PDEHandlerAccess<dim,spacedim,LAC>::PDEHandlerAccess ()
 {}
 
 
 template <int dim, int spacedim, typename LAC>
-PDEAssemblerAcces<dim,spacedim,LAC>::
-PDEAssemblerAcces (const PDEHandler<dim,spacedim,LAC> &simulator_object)
+PDEHandlerAccess<dim,spacedim,LAC>::
+PDEHandlerAccess (const PDEHandler<dim,spacedim,LAC> &simulator_object)
   :
   simulator (&simulator_object)
 {}
 
 
 template <int dim, int spacedim, typename LAC>
-PDEAssemblerAcces<dim,spacedim,LAC>::~PDEAssemblerAcces ()
+PDEHandlerAccess<dim,spacedim,LAC>::~PDEHandlerAccess ()
 {}
 
 
 
 template <int dim, int spacedim, typename LAC>
 void
-PDEAssemblerAcces<dim,spacedim,LAC>::
+PDEHandlerAccess<dim,spacedim,LAC>::
 initialize_simulator (const PDEHandler<dim,spacedim,LAC> &simulator_object) const
 {
   simulator = &simulator_object;
@@ -32,7 +32,7 @@ initialize_simulator (const PDEHandler<dim,spacedim,LAC> &simulator_object) cons
 
 template <int dim, int spacedim, typename LAC>
 const PDEHandler<dim,spacedim,LAC> &
-PDEAssemblerAcces<dim,spacedim,LAC>::get_simulator() const
+PDEHandlerAccess<dim,spacedim,LAC>::get_simulator() const
 {
   return *simulator;
 }
@@ -41,7 +41,7 @@ PDEAssemblerAcces<dim,spacedim,LAC>::get_simulator() const
 
 template <int dim, int spacedim, typename LAC>
 Signals<dim,spacedim,LAC> &
-PDEAssemblerAcces<dim,spacedim,LAC>::get_signals() const
+PDEHandlerAccess<dim,spacedim,LAC>::get_signals() const
 {
   // we need to connect to the signals so a const_cast is required
   return const_cast<Signals<dim,spacedim,LAC>&>(simulator->signals);
@@ -50,7 +50,7 @@ PDEAssemblerAcces<dim,spacedim,LAC>::get_signals() const
 
 #ifdef DEAL_II_WITH_MPI
 template <int dim, int spacedim, typename LAC>
-const MPI_Comm &PDEAssemblerAcces<dim, spacedim, LAC>::get_mpi_communicator() const
+const MPI_Comm &PDEHandlerAccess<dim, spacedim, LAC>::get_mpi_communicator() const
 {
   return simulator->comm;
 }
@@ -59,7 +59,7 @@ const MPI_Comm &PDEAssemblerAcces<dim, spacedim, LAC>::get_mpi_communicator() co
 
 template <int dim, int spacedim, typename LAC>
 const ConditionalOStream &
-PDEAssemblerAcces<dim,spacedim,LAC>::get_pcout () const
+PDEHandlerAccess<dim,spacedim,LAC>::get_pcout () const
 {
   return simulator->pcout;
 }
@@ -74,7 +74,7 @@ PDEAssemblerAcces<dim,spacedim,LAC>::get_pcout () const
 
 template <int dim, int spacedim, typename LAC>
 const Triangulation<dim,spacedim> &
-PDEAssemblerAcces<dim,spacedim,LAC>::get_triangulation () const
+PDEHandlerAccess<dim,spacedim,LAC>::get_triangulation () const
 {
   return *simulator->triangulation;
 }
@@ -82,7 +82,7 @@ PDEAssemblerAcces<dim,spacedim,LAC>::get_triangulation () const
 
 template <int dim, int spacedim, typename LAC>
 const std::vector<shared_ptr<typename LAC::VectorType>> &
-                                                     PDEAssemblerAcces<dim,spacedim,LAC>::get_solutions () const
+                                                     PDEHandlerAccess<dim,spacedim,LAC>::get_solutions () const
 {
   return simulator->solutions;
 }
@@ -91,7 +91,7 @@ const std::vector<shared_ptr<typename LAC::VectorType>> &
 
 template <int dim, int spacedim, typename LAC>
 const std::vector<shared_ptr<typename LAC::VectorType>> &
-                                                     PDEAssemblerAcces<dim,spacedim,LAC>::get_locally_relevant_solutions () const
+                                                     PDEHandlerAccess<dim,spacedim,LAC>::get_locally_relevant_solutions () const
 {
   return simulator->locally_relevant_solutions;
 }
@@ -99,7 +99,7 @@ const std::vector<shared_ptr<typename LAC::VectorType>> &
 
 template <int dim, int spacedim, typename LAC>
 const DoFHandler<dim,spacedim> &
-PDEAssemblerAcces<dim,spacedim,LAC>::get_dof_handler () const
+PDEHandlerAccess<dim,spacedim,LAC>::get_dof_handler () const
 {
   return *simulator->dof_handler;
 }
@@ -107,7 +107,7 @@ PDEAssemblerAcces<dim,spacedim,LAC>::get_dof_handler () const
 
 template <int dim, int spacedim, typename LAC>
 const FiniteElement<dim,spacedim> &
-PDEAssemblerAcces<dim,spacedim,LAC>::get_fe () const
+PDEHandlerAccess<dim,spacedim,LAC>::get_fe () const
 {
   Assert (simulator->dof_handler->n_locally_owned_dofs() != 0,
           ExcMessage("You are trying to access the FiniteElement before the DOFs have been "
@@ -119,12 +119,12 @@ PDEAssemblerAcces<dim,spacedim,LAC>::get_fe () const
 
 template <int dim, int spacedim, typename LAC>
 const ParsedDirichletBCs<dim, spacedim> &
-PDEAssemblerAcces<dim,spacedim,LAC>::get_dirichlet_bcs() const
+PDEHandlerAccess<dim,spacedim,LAC>::get_dirichlet_bcs() const
 {
   return simulator->dirichlet_bcs;
 }
 
 #define INSTANTIATE(dim,spacedim,LA) \
-  template class PDEAssemblerAcces<dim,spacedim,LA>;
+  template class PDEHandlerAccess<dim,spacedim,LA>;
 
 PIDOMUS_INSTANTIATE(INSTANTIATE)

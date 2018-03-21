@@ -64,32 +64,12 @@ build_couplings()
 
   for (unsigned int i=0; i<n_matrices; ++i)
     {
-      std::vector<std::vector<unsigned int> > int_couplings;
-
-      convert_string_to_int(str_couplings[i], int_couplings);
-
+      std::vector<std::vector<unsigned int> > int_couplings
+        = Patterns::Tools::Convert<std::vector<std::vector<unsigned int> > >::to_value(str_couplings[i]);
       matrix_couplings[i] = to_coupling(int_couplings);
     }
 }
 
-
-template <int dim, int spacedim, typename LAC>
-void
-PDEBaseInterface<dim,spacedim,LAC>::
-convert_string_to_int(const std::string &str_coupling,
-                      std::vector<std::vector<unsigned int> > &int_coupling) const
-{
-  std::vector<std::string> rows = Utilities::split_string_list(str_coupling, ';');
-  for (unsigned int r=0; r<rows.size(); ++r)
-    {
-      std::vector<std::string> str_comp = Utilities::split_string_list(rows[r], ',');
-      std::vector<unsigned int> int_comp(str_comp.size());
-      for (unsigned int i=0; i<str_comp.size(); ++i)
-        int_comp[i] = Utilities::string_to_int(str_comp[i]);
-
-      int_coupling.push_back(int_comp);
-    }
-}
 
 template <int dim, int spacedim, typename LAC>
 Table<2,DoFTools::Coupling>
@@ -334,14 +314,14 @@ PDEBaseInterface<dim,spacedim,LAC>::get_error_mapping() const
 
 template <int dim, int spacedim, typename LAC>
 const Mapping<dim,spacedim> &
-PDEBaseInterface<dim,spacedim,LAC>::get_interpolate_mapping() const
+PDEBaseInterface<dim,spacedim,LAC>::get_interpolation_mapping() const
 {
   return get_default_mapping();
 }
 
 template <int dim, int spacedim, typename LAC>
 const Mapping<dim,spacedim> &
-PDEBaseInterface<dim,spacedim,LAC>::get_project_mapping() const
+PDEBaseInterface<dim,spacedim,LAC>::get_projection_mapping() const
 {
   return get_default_mapping();
 }
@@ -352,12 +332,6 @@ PDEBaseInterface<dim,spacedim,LAC>::get_face_update_flags() const
 {
   return (update_values         | update_quadrature_points  |
           update_normal_vectors | update_JxW_values);
-}
-
-template<int dim, int spacedim, typename LAC>
-void
-PDEBaseInterface<dim,spacedim,LAC>::declare_parameters(ParameterHandler &)
-{
 }
 
 
@@ -400,13 +374,11 @@ solution_preprocessing (FEValuesCache<dim,spacedim> & /*scratch*/) const
 
 
 template<int dim, int spacedim, typename LAC>
-void PDEBaseInterface<dim,spacedim,LAC>::set_current_parameters_and_coefficients
-(const std::map<std::string, double> &parameters,
- const std::vector<double> &coefficients) const
+void PDEBaseInterface<dim,spacedim,LAC>::set_jacobian_coefficients
+(const std::vector<double> &coefficients) const
 {
   AssertDimension(n_vectors, coefficients.size());
   current_coefficients = coefficients;
-  current_parameters = parameters;
   const auto &v = this->get_solutions();
 
   active_vectors.resize(0);

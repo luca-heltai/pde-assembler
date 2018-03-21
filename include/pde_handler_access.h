@@ -1,5 +1,5 @@
-#ifndef pde_assembler_acess_h
-#define pde_assembler_acess_h
+#ifndef pde_handler_acess_h
+#define pde_handler_acess_h
 
 #include <deal.II/base/conditional_ostream.h>
 #include <deal.II/distributed/tria.h>
@@ -9,7 +9,7 @@
 #include <deal2lkit/parsed_dirichlet_bcs.h>
 
 using namespace dealii;
-//using namespace deal2lkit;
+using namespace deal2lkit;
 
 
 // forward declaration
@@ -18,7 +18,7 @@ template <int dim, int spacedim, typename LAC> class PDEHandler;
 template <int dim, int spacedim, typename LAC> struct Signals;
 
 template <int dim, int spacedim, typename LAC>
-class PDEAssemblerAcces
+class PDEHandlerAccess
 {
 public:
 
@@ -28,20 +28,20 @@ public:
    * to call initialize() to provide this reference to the PDEAssembler
    * object.
    */
-  PDEAssemblerAcces ();
+  PDEHandlerAccess ();
 
   /**
    * Create a PDEAssemblerAcces object that is already initialized for
    * a particular PDEAssembler.
    */
-  PDEAssemblerAcces (const PDEHandler<dim,spacedim,LAC> &simulator_object);
+  PDEHandlerAccess (const PDEHandler<dim,spacedim,LAC> &simulator_object);
 
   /**
    * Destructor. Does nothing but is virtual so that derived classes
    * destructors are also virtual.
    */
   virtual
-  ~PDEAssemblerAcces ();
+  ~PDEHandlerAccess ();
 
   /**
    * Initialize this class for a given simulator. This function is marked
@@ -59,19 +59,19 @@ public:
 
   /**
    * Return a reference to the PDEAssembler itself. Note that you can not
-   * access any members or functions of the PDEAssembler. This function
-   * exists so that any class with PDEAssemblerAcces can create other
-   * objects with PDEAssemblerAcces (because initializing them requires a
-   * reference to the PDEAssembler).
+   * access any members or functions of the PDEAssembler. This function exists
+   * so that any class with PDEAssemblerAcces can create other objects with
+   * PDEAssemblerAcces (because initializing them requires a reference to the
+   * PDEAssembler).
    */
   const PDEHandler<dim,spacedim,LAC> &
   get_simulator () const;
 
-  const std::vector<shared_ptr<typename LAC::VectorType>> &
-                                                       get_solutions() const;
+  const std::vector<shared_ptr<typename LAC::VectorType> > &
+  get_solutions() const;
 
-  const std::vector<shared_ptr<typename LAC::VectorType>> &
-                                                       get_locally_relevant_solutions() const;
+  const std::vector<shared_ptr<typename LAC::VectorType> > &
+  get_locally_relevant_solutions() const;
 
   /**
    * Get access to the structure containing the signals of PDEAssembler

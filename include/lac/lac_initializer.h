@@ -49,13 +49,11 @@ public:
 
 
   /**
-   * Initiale a ghosted BlockVector<double>. Will throw an exception and
-   * should not be called...
+   * Initialize a ghosted BlockVector<double>. Identical to the above call.
    */
-  void ghosted(BlockVector<double> &, bool fast=false)
+  void ghosted(BlockVector<double> &v, bool fast=false)
   {
-    Assert(false, ExcInternalError("You tried to create a ghosted vector in a serial run."));
-    (void)fast;
+    v.reinit(dofs_per_block, fast);
   };
 
   /**

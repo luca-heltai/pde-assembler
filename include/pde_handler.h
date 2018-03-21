@@ -1,17 +1,3 @@
-/**
- * Solve time-dependent non-linear n-fields problem
- * in parallel.
- *
- *
- *
- *
- *
- *
- *
- *
- *
- */
-
 #ifndef pde_handler_h
 #define pde_handler_h
 
@@ -35,7 +21,7 @@
 
 
 #include "pde_base_interface.h"
-#include "pde_assembler_access.h"
+#include "pde_handler_access.h"
 #include "pidomus_signals.h"
 
 #include <deal2lkit/parsed_grid_generator.h>
@@ -108,8 +94,7 @@ public:
    * @param setup_jacobian If this flag is true, then the jacobian is updated
    *        internally.
    */
-  void residual(const std::map<std::string, double>                           &parameters,
-                const std::vector<double>                                     &coefficients,
+  void residual(const std::vector<double>                                     &coefficients,
                 const std::vector<std::shared_ptr<typename LAC::VectorType> > &input_vectors,
                 typename LAC::VectorType                                      &residual_vector);
 
@@ -164,8 +149,7 @@ public:
 
   void output_solution(const std::string &suffix="") const;
 
-  void assemble_matrices (const std::map<std::string, double>         &parameters,
-                          const std::vector<double>                   &coefficients,
+  void assemble_matrices (const std::vector<double> &coefficients,
                           const std::vector<std::shared_ptr<typename LAC::VectorType>>  &input_vectors,
                           typename LAC::VectorType &residual_vector);
 
@@ -267,7 +251,6 @@ public:
   ParsedMappedFunctions<spacedim>  forcing_terms; // on the volume
   ParsedMappedFunctions<spacedim>  neumann_bcs;
   ParsedDirichletBCs<dim,spacedim> dirichlet_bcs;
-  ParsedDirichletBCs<dim,spacedim> dirichlet_bcs_dot;
 
   ParsedZeroAverageConstraints<dim,spacedim> zero_average;
 
@@ -294,7 +277,7 @@ public:
    * PDEAssemblerAccess accesses to all internal variables and returns a
    * const reference to them through functions named get_variable()
    */
-  friend class PDEAssemblerAcces<dim,spacedim,LAC>;
+  friend class PDEHandlerAccess<dim,spacedim,LAC>;
 
   virtual void declare_parameters(ParameterHandler &prm);
 

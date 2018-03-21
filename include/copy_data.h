@@ -1,20 +1,10 @@
-/**
- * Assembly
- *
- * This namespace contains two sub namespaces: Scratch and CopyData.
- *
- * Goal: provide two structs data required in comunication process
- *       like WorkStream.
- */
+#ifndef pidomus_copy_data_h
+#define pidomus_copy_data_h
 
-#ifndef _pidomus_copy_data_h
-#define _pidomus_copy_data_h
-
-#include <deal.II/fe/fe_values.h>
-#include <deal2lkit/fe_values_cache.h>
+#include <deal.II/lac/full_matrix.h>
 
 using namespace dealii;
-using namespace deal2lkit;
+
 namespace pidomus
 {
   struct CopyData
@@ -43,30 +33,6 @@ namespace pidomus
     std::vector<double>                   local_residual;
     std::vector<FullMatrix<double> >      local_matrices;
   };
-
-  struct CopyMass
-  {
-    CopyMass (const unsigned int &dofs_per_cell)
-      :
-      local_dof_indices  (dofs_per_cell),
-      local_matrix     (FullMatrix<double>(dofs_per_cell,
-                                           dofs_per_cell))
-    {}
-
-    CopyMass (const CopyMass &data)
-      :
-      local_dof_indices  (data.local_dof_indices),
-      local_matrix       (data.local_matrix)
-    {}
-
-    ~CopyMass()
-    {}
-
-    std::vector<types::global_dof_index>  local_dof_indices;
-    FullMatrix<double>                    local_matrix;
-  };
-
-
 }
 
 #endif

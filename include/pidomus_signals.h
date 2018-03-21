@@ -1,7 +1,7 @@
-#ifndef _pidomus_signals_h
-#define _pidomus_signals_h
+#ifndef pidomus_signals_h
+#define pidomus_signals_h
 
-#include "simulator_access.h"
+#include "pde_handler_access.h"
 
 template <int dim, int spacedim>
 class Trianguation;

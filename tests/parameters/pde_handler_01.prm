@@ -1,0 +1,65 @@
+# Parameter file generated with 
+# DEAL_II_PACKAGE_VERSION = 9.0.0-pre
+subsection PDE Assembler
+  set Adaptive refinement                            = true
+  set Initial global refinement                      = 2
+  set Print some useful informations about processes = true
+  set Use direct solver if available                 = true
+  subsection Dirichlet boundary conditions (u)
+    set IDs and component masks = 0=ALL
+    set IDs and expressions     = 
+    set Used constants          = 
+  end
+  subsection Domain
+    set Colorize                      = false
+    set Copy boundary to manifold ids = false
+    set Copy material to manifold ids = false
+    set Create default manifolds      = true
+    set Grid to generate              = rectangle
+    set Input grid file name          = 
+    set Manifold descriptors          = 
+    set Mesh smoothing algorithm      = none
+    set Optional Point<spacedim> 1    = 0.000000, 0.000000
+    set Optional Point<spacedim> 2    = 1.000000, 1.000000
+    set Optional double 1             = 1.000000
+    set Optional double 2             = 0.500000
+    set Optional double 3             = 1.500000
+    set Optional int 1                = 1
+    set Optional int 2                = 2
+    set Optional vector of dim int    = 1, 1
+    set Output grid file name         = 
+  end
+  subsection Finite element space (u)
+    set Finite element space = FESystem[FE_Q(1)]
+  end
+  subsection Forcing terms (u)
+    set IDs and component masks = 
+    set IDs and expressions     = 
+    set Used constants          = 
+  end
+  subsection Neumann boundary conditions (u)
+    set IDs and component masks = 
+    set IDs and expressions     = 
+    set Used constants          = 
+  end
+  subsection Output Parameters (u)
+    set Files to save in run directory = 
+    set Output format                  = none
+    set Output partitioning            = false
+    set Problem base name              = solution
+    set Subdivisions                   = 1
+  end
+  subsection Refinement
+    set Bottom fraction                        = 0.100000
+    set Maximum number of cells (if available) = 0
+    set Order (optimize)                       = 2
+    set Refinement strategy                    = fraction
+    set Top fraction                           = 0.300000
+  end
+  subsection Zero average constraints (u)
+    set Zero average on boundary     = 
+    set Zero average on whole domain = 
+  end
+end
+subsection Poisson problem
+end
