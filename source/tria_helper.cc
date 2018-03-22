@@ -15,10 +15,10 @@ template <int dim, int spacedim, typename LAC>
 void TriaHelper<dim,spacedim,LAC>::make_grid()
 {
   if (LAC::triatype == TriaType::serial)
-    p_serial = shared_ptr<Triangulation<dim,spacedim> >(pgg.serial());
+    p_serial = pgg.serial();
 #ifdef DEAL_II_WITH_MPI
   else
-    p_parallel = shared_ptr<parallel::distributed::Triangulation<dim,spacedim> >(pgg.distributed(comm));
+    p_parallel = pgg.distributed(comm);
 #endif
 }
 

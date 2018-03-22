@@ -43,7 +43,7 @@ private:
   std::shared_ptr<Triangulation<dim,spacedim> > p_serial;
 
 #ifdef DEAL_II_WITH_MPI
-  std::shared_ptr<parallel::distributed::Triangulation<dim,spacedim> > p_parallel;
+  std::shared_ptr<Triangulation<dim,spacedim> > p_parallel;
 #endif
 };
 
