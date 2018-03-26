@@ -13,6 +13,8 @@
 #include <deal.II/base/parameter_acceptor.h>
 #include <deal.II/base/mpi.h>
 
+#include <deal.II/sundials/kinsol.h>
+
 
 using namespace deal2lkit;
 using namespace dealii;
@@ -50,6 +52,16 @@ private:
    * The PDEHandler object.
    */
   PDEHandler<dim,spacedim,LAC> pde;
+
+  /**
+   * Kinsol data.
+   */
+  typename SUNDIALS::KINSOL<typename LAC::VectorType>::AdditionalData kinsol_data;
+
+  /**
+   * Kinsol solver.
+   */
+  std::unique_ptr<SUNDIALS::KINSOL<typename LAC::VectorType>> kinsol;
 
   /**
    * Number of cycles to perform.

@@ -7,8 +7,8 @@
 
 template<int dim, int spacedim, typename LAC>
 LinearQuasiStaticProblem<dim,spacedim,LAC>::LinearQuasiStaticProblem(const std::string &name,
-                                                         PDEBaseInterface<dim, spacedim, LAC> &interface,
-                                                         const MPI_Comm &comm) :
+    PDEBaseInterface<dim, spacedim, LAC> &interface,
+    const MPI_Comm &comm) :
   dealii::ParameterAcceptor(name),
   comm(comm),
   interface(interface),
