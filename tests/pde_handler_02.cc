@@ -2,7 +2,7 @@
 #include "tests.h"
 
 #include "pde_system_interface.h"
-#include "quasi_static_problem.h"
+#include "linear_quasi_static_problem.h"
 
 #include <deal.II/lac/sparse_direct.h>
 
@@ -55,7 +55,7 @@ int main (int argc, char *argv[])
   const int spacedim = 2;
 
   Poisson<dim,spacedim,LADealII> poisson;
-  QuasiStaticProblem<dim,spacedim,LADealII> problem("/Quasi static/", poisson);
+  LinearQuasiStaticProblem<dim,spacedim,LADealII> problem("/Quasi static/", poisson);
 
   deal2lkit::ParameterAcceptor::initialize(SOURCE_DIR "/parameters/pde_handler_02.prm",
                                            //SOURCE_DIR "/parameters/pde_handler_02.prm");
