@@ -351,19 +351,17 @@ void
 PDEBaseInterface<dim,spacedim,LAC>::
 estimate_error_per_cell(Vector<float> &estimated_error) const
 {
-  (void) estimated_error;
-  AssertThrow(false, ExcMessage("FIXME"));
-//  const DoFHandler<dim,spacedim> &dof = this->get_dof_handler();
-//  KellyErrorEstimator<dim,spacedim>::estimate (get_kelly_mapping(),
-//                                               dof,
-//                                               QGauss <dim-1> (dof.get_fe().degree + 1),
-//                                               typename FunctionMap<spacedim>::type(),
-//                                               this->get_locally_relevant_solution(),
-//                                               estimated_error,
-//                                               ComponentMask(),
-//                                               0,
-//                                               0,
-//                                               dof.get_triangulation().locally_owned_subdomain());
+  const DoFHandler<dim,spacedim> &dof = this->get_dof_handler();
+  KellyErrorEstimator<dim,spacedim>::estimate (get_kelly_mapping(),
+                                               dof,
+                                               QGauss <dim-1> (dof.get_fe().degree + 1),
+                                               typename FunctionMap<spacedim>::type(),
+                                               *this->get_locally_relevant_solutions()[0],
+                                               estimated_error,
+                                               ComponentMask(),
+                                               0,
+                                               0,
+                                               dof.get_triangulation().locally_owned_subdomain());
 }
 
 template<int dim, int spacedim, typename LAC>

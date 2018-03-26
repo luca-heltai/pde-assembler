@@ -150,13 +150,12 @@ public:
   void output_solution(const std::string &suffix="") const;
 
   void assemble_matrices (const std::vector<double> &coefficients,
-                          const std::vector<std::shared_ptr<typename LAC::VectorType>>  &input_vectors,
-                          typename LAC::VectorType &residual_vector);
+                          const std::vector<std::shared_ptr<typename LAC::VectorType>>  &input_vectors);
 
   /**
    * Same as above, using already stored parameters and coefficients.
    */
-  void assemble_matrices (typename LAC::VectorType &residual_vector);
+  void assemble_matrices ();
 
 
   typename LAC::VectorType &v(const std::string &vec_name) const
@@ -323,8 +322,7 @@ PDEHandler<dim, spacedim, LAC>::refine_mesh()
     }
 
   refine_and_transfer_solutions(solutions,
-                                adaptive_refinement,
-                                dim_is_one<dim>());
+                                adaptive_refinement);
 
   signals.end_refine_mesh();
 }
@@ -372,7 +370,6 @@ refine_and_transfer_solutions(std::vector<shared_ptr<typename LATrilinos::Vector
   for (unsigned int i=0; i<solutions.size(); ++i)
     solutions[i] = new_solutions[i];
 
-  update_functions_and_constraints(parameters);
   constraints[0]->distribute(*solutions[0]);
 
   for (unsigned int i=0; i<solutions.size(); ++i)
@@ -390,47 +387,35 @@ refine_and_transfer_solutions(std::vector<shared_ptr<LADealII::VectorType>> &y,
                               bool adaptive_refinement)
 {
   signals.begin_refine_and_transfer_solutions();
-  (void) adaptive_refinement;
-  (void) y;
-  AssertThrow(false, ExcMessage("FIXME"));
-//  SolutionTransfer<dim, LADealII::VectorType, DoFHandler<dim,spacedim> > sol_tr(*dof_handler);
+  SolutionTransfer<dim, LADealII::VectorType, DoFHandler<dim,spacedim> > sol_tr(*dof_handler);
 
-//  std::vector<LADealII::VectorType> old_sols (3);
-//  old_sols[0] = y;
-//  old_sols[1] = y_dot;
-//  old_sols[2] = y_expl;
+  std::vector<LADealII::VectorType> old_sols(pde.n_vectors);
+  for (unsigned int i=0; i<pde.n_vectors; ++i)
+    old_sols[i] = *y[i];
 
-//  triangulation->prepare_coarsening_and_refinement();
-//  sol_tr.prepare_for_coarsening_and_refinement (old_sols);
+  triangulation->prepare_coarsening_and_refinement();
+  sol_tr.prepare_for_coarsening_and_refinement (old_sols);
 
-//  if (adaptive_refinement)
-//    triangulation->execute_coarsening_and_refinement ();
-//  else
-//    triangulation->refine_global (1);
+  if (adaptive_refinement)
+    triangulation->execute_coarsening_and_refinement ();
+  else
+    triangulation->refine_global (1);
 
-//  setup_dofs(false);
+  setup_dofs(false);
 
-//  std::vector<LADealII::VectorType> new_sols (3);
+  std::vector<LADealII::VectorType> new_sols(pde.n_vectors);
+  for (unsigned int i=0; i<pde.n_vectors; ++i)
+    {
+      new_sols[i].reinit(*solutions[i], true);
+      y[i]->reinit(*solutions[i],true);
+    }
 
-//  new_sols[0].reinit(y);
-//  new_sols[1].reinit(y_dot);
-//  new_sols[2].reinit(y_expl);
+  sol_tr.interpolate (old_sols, new_sols);
 
-//  sol_tr.interpolate (old_sols, new_sols);
-
-//  y      = new_sols[0];
-//  y_dot  = new_sols[1];
-//  y_expl = new_sols[2];
-
-//  update_functions_and_constraints(previous_time);
-//  train_constraints[0]->distribute(y_expl);
-
-//  update_functions_and_constraints(current_time);
-//  train_constraints[0]->distribute(y);
-//  constraints_dot.distribute(y_dot);
-
-//  locally_relevant_y = y;
-//  locally_relevant_y_dot = y_dot;
+  for (unsigned int i=0; i<pde.n_vectors; ++i)
+    {
+      *y[i] = new_sols[i];
+    }
 
   signals.end_refine_and_transfer_solutions();
 }

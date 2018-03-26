@@ -98,6 +98,7 @@ struct Signals
   boost::signals2::signal<void ()> begin_refine_mesh;
   boost::signals2::signal<void ()> begin_setup_jacobian;
   boost::signals2::signal<void ()> begin_residual;
+  boost::signals2::signal<void ()> begin_run;
   boost::signals2::signal<void ()> begin_solve_jacobian_system;
   boost::signals2::signal<void ()> begin_refine_and_transfer_solutions;
   boost::signals2::signal<void ()> begin_assemble_matrices;
@@ -108,6 +109,7 @@ struct Signals
   boost::signals2::signal<void ()> end_refine_mesh;
   boost::signals2::signal<void ()> end_setup_jacobian;
   boost::signals2::signal<void ()> end_residual;
+  boost::signals2::signal<void ()> end_run;
   boost::signals2::signal<void ()> end_solve_jacobian_system;
   boost::signals2::signal<void ()> end_refine_and_transfer_solutions;
   boost::signals2::signal<void ()> end_assemble_matrices;

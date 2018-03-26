@@ -12,8 +12,8 @@
 // the top level of the deal.II distribution.
 //
 // ---------------------------------------------------------------------
-#ifndef _LAC_TYPE_H_
-#define _LAC_TYPE_H_
+#ifndef LAC_TYPE_H
+#define LAC_TYPE_H
 
 
 #include <deal.II/base/config.h>

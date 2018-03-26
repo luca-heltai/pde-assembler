@@ -2,6 +2,7 @@
 #include "tests.h"
 
 #include "pde_system_interface.h"
+#include "quasi_static_problem.h"
 
 #include <deal.II/lac/sparse_direct.h>
 
@@ -48,40 +49,17 @@ int main (int argc, char *argv[])
 
   initlog(true);
   deallog.depth_file(1);
+  deallog.depth_console(1);
 
   const int dim = 2;
   const int spacedim = 2;
 
   Poisson<dim,spacedim,LADealII> poisson;
-  PDEHandler<dim,spacedim,LADealII> assembler ("/PDE Assembler/",poisson);
-  deal2lkit::ParameterAcceptor::initialize(SOURCE_DIR "/parameters/pde_handler_01.prm",
+  QuasiStaticProblem<dim,spacedim,LADealII> problem("/Quasi static/", poisson);
+
+  deal2lkit::ParameterAcceptor::initialize(SOURCE_DIR "/parameters/pde_handler_02.prm",
+                                           //SOURCE_DIR "/parameters/pde_handler_02.prm");
                                            "used_parameters.prm");
 
-  assembler.init();
-
-  std::vector<double> c {1.0};
-  poisson.set_jacobian_coefficients(c);
-
-  auto &u = assembler.v("solution");
-  auto &A = assembler.m("system");
-  // auto &C = assembler.c("system");
-
-  auto res(u);
-  u = 1;
-  assembler.assemble_matrices();
-  deallog << "L2 norm of res: " << res.l2_norm() << std::endl;
-
-  // A.print_formatted(deallog.get_file_stream());
-
-  SparseDirectUMFPACK solver;
-  solver.factorize(A);
-
-  assembler.residual(res);
-  res *= -1;
-  solver.vmult(u,res);
-  assembler.constraints[0]->distribute(u);
-  // C.distribute(u);
-  assembler.output_solution();
-
-  deallog << "Linfty norm of u: " << u.linfty_norm() << std::endl;
+  problem.run();
 }

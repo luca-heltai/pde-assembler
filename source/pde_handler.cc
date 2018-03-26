@@ -338,17 +338,16 @@ apply_dirichlet_bcs (const DoFHandler<dim,spacedim> &dof_handler,
 template <int dim, int spacedim, typename LAC>
 void PDEHandler<dim, spacedim, LAC>::assemble_matrices
 (const std::vector<double>                   &coefficients,
- const std::vector<std::shared_ptr<typename LAC::VectorType>>  &input_vectors,
- typename LAC::VectorType &residual_vector)
+ const std::vector<std::shared_ptr<typename LAC::VectorType>>  &input_vectors)
 {
   solutions = input_vectors;
   pde.set_jacobian_coefficients(coefficients);
 
-  assemble_matrices(residual_vector);
+  assemble_matrices();
 }
 
 template <int dim, int spacedim, typename LAC>
-void PDEHandler<dim, spacedim, LAC>::assemble_matrices(typename LAC::VectorType &residual_vector)
+void PDEHandler<dim, spacedim, LAC>::assemble_matrices()
 {
   auto _timer = computing_timer.scoped_timer ("Assemble matrices");
 
@@ -373,7 +372,7 @@ void PDEHandler<dim, spacedim, LAC>::assemble_matrices(typename LAC::VectorType 
   for (unsigned int i=0; i<n_matrices; ++i)
     *(matrices[i]) = 0;
 
-  auto local_copy = [&residual_vector, this]
+  auto local_copy = [this]
                     (const pidomus::CopyData & data)
   {
 
@@ -381,10 +380,6 @@ void PDEHandler<dim, spacedim, LAC>::assemble_matrices(typename LAC::VectorType 
       this->constraints[i]->distribute_local_to_global (data.local_matrices[i],
                                                         data.local_dof_indices,
                                                         *(this->matrices[i]));
-
-    this->constraints[0]->distribute_local_to_global (data.local_residual,
-                                                      data.local_dof_indices,
-                                                      residual_vector);
   };
 
   auto local_assemble = [ this ]
@@ -486,15 +481,15 @@ PDEHandler<dim, spacedim, LAC>::residual(typename LAC::VectorType &residual_vect
 
   residual_vector.compress(VectorOperation::add);
 
-  auto id = solutions[0]->locally_owned_elements();
-  for (unsigned int i = 0; i < id.n_elements(); ++i)
-    {
-      auto j = id.nth_index_in_set(i);
-      if (constraints[0]->is_constrained(j))
-        residual_vector[j] = (*solutions[0])(j) - (*locally_relevant_solutions[0])(j);
-    }
+//  auto id = solutions[0]->locally_owned_elements();
+//  for (unsigned int i = 0; i < id.n_elements(); ++i)
+//    {
+//      auto j = id.nth_index_in_set(i);
+//      if (constraints[0]->is_constrained(j))
+//        residual_vector[j] = (*solutions[0])(j) - (*locally_relevant_solutions[0])(j);
+//    }
 
-  residual_vector.compress(VectorOperation::insert);
+//  residual_vector.compress(VectorOperation::insert);
 
   signals.end_residual();
 }
