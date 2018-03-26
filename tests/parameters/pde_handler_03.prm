@@ -1,0 +1,93 @@
+# Parameter file generated with 
+# DEAL_II_PACKAGE_VERSION = 9.0.0-pre
+subsection Quasi static
+  set Adaptive refinement                            = false
+  set Final time                                     = 1.000000
+  set Initial global refinement                      = 1
+  set Number of cycles                               = 5
+  set Print some useful informations about processes = true
+  set Starting time                                  = 1.000000
+  set Time step                                      = 0.000000
+  set Use direct solver if available                 = true
+  subsection Dirichlet boundary conditions (u,u,p)
+    set IDs and component masks = 0=ALL % 1=ALL % 2=ALL % 3=ALL
+    set IDs and expressions     = 0=0;0;0 % 1=0;0;0 % 2=0;0;0 % 3=y > .999 ? 1 : 0; 0; 0
+    set Used constants          = k=1
+  end
+  subsection Domain
+    set Colorize                      = true
+    set Copy boundary to manifold ids = true
+    set Copy material to manifold ids = false
+    set Create default manifolds      = true
+    set Grid arguments                = 0 : 1
+    set Grid to generate              = hyper_cube
+    set Manifold arguments            = 
+    set Manifold descriptors          = 
+    set Mesh smoothing algorithm      = none
+    set Output grid file name         = 
+  end
+  subsection Error handler
+    set Compute error            = true
+    set Error file format        = tex
+    set Error precision          = 3
+    set Output error tables      = true
+    set Solution names           = u,u,p
+    set Solution names for latex = u,u,p
+    set Table names              = error
+    set Write error files        = false
+    subsection Table 0
+      set Add convergence rates          = true
+      set Extra terms                    = cells,dofs
+      set Latex table caption            = error
+      set List of error norms to compute = L2,H1; AddUp; L2
+      set Rate key                       = 
+    end
+  end
+  subsection Exact solution
+    set Function constants  = 
+    set Function expression = 0; 0; 0
+    set Variable names      = x,y,t
+  end
+  subsection Finite element space (u,u,p)
+    set Finite element space = FESystem[FE_Q(2)^d-FE_DGP(1)]
+  end
+  subsection Forcing terms (u,u,p)
+    set IDs and component masks = 0 = u
+    set IDs and expressions     = 0 = 0;0;0
+    set Used constants          = k=1
+  end
+  subsection Neumann boundary conditions (u,u,p)
+    set IDs and component masks = 
+    set IDs and expressions     = 
+    set Used constants          = 
+  end
+  subsection Output Parameters (u,u,p)
+    set Files to save in run directory = 
+    set Output format                  = vtu
+    set Output partitioning            = false
+    set Problem base name              = solution
+    set Subdivisions                   = 1
+  end
+  subsection Refinement
+    set Bottom fraction                        = 0.100000
+    set Maximum number of cells (if available) = 0
+    set Order (optimize)                       = 2
+    set Refinement strategy                    = fraction
+    set Top fraction                           = 0.300000
+  end
+  subsection Solver
+    set Log frequency = 1
+    set Log history   = false
+    set Log result    = true
+    set Max steps     = 1000
+    set Reduction     = 1e-08
+    set Solver name   = cg
+    set Tolerance     = 1.e-10
+  end
+  subsection Zero average constraints (u,u,p)
+    set Zero average on boundary     = 
+    set Zero average on whole domain = 
+  end
+end
+subsection Stokes problem
+end

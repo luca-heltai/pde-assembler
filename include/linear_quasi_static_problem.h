@@ -81,7 +81,7 @@ private:
   /**
    * Exact solution.
    */
-  ParsedFunction<spacedim>        exact_solution;
+  ParsedFunction<spacedim> exact_solution;
 
   /**
    * Parsed solver.

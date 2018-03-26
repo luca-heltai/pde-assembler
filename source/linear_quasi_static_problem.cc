@@ -34,7 +34,7 @@ template<int dim, int spacedim, typename LAC>
 void LinearQuasiStaticProblem<dim,spacedim,LAC>::run()
 {
   init();
-  std::vector<double> jacobian_coefficients(interface.n_components, 0);
+  std::vector<double> jacobian_coefficients(interface.n_vectors, 0);
   Assert(jacobian_coefficients.size(),
          ExcInternalError("Expecting at least one solution vector in the interface."));
   jacobian_coefficients[0] = 1.0;
