@@ -96,6 +96,11 @@ private:
   ParsedFunction<spacedim>        exact_solution;
 
   /**
+   * Initial guess.
+   */
+  ParsedFunction<spacedim>        initial_guess;
+
+  /**
    * Parsed solver.
    */
   ParsedSolver<typename LAC::VectorType> solver;

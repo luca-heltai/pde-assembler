@@ -406,6 +406,34 @@ void PDEHandler<dim, spacedim, LAC>::assemble_matrices()
     matrices[i]->compress(VectorOperation::add);
 }
 
+template<int dim, int spacedim, typename LAC>
+void PDEHandler<dim,spacedim,LAC>::interpolate_or_project(const Function<spacedim> &f, typename LAC::VectorType &v)
+{
+  if (fe->has_support_points())
+    {
+      VectorTools::interpolate(pde.get_default_mapping(), *dof_handler, f, v);
+    }
+  else if (!we_are_parallel)
+    {
+      const QGauss<dim> quadrature_formula(fe->degree + 1);
+      VectorTools::project(pde.get_default_mapping(), *dof_handler, *constraints[0],
+                           quadrature_formula, f, v);
+    }
+  else
+    {
+      Point<spacedim> p;
+      Vector<double> vals(pde.n_components);
+      f.vector_value(p, vals);
+
+      unsigned int comp = 0;
+      for (unsigned int b=0; b<v.n_blocks(); ++b)
+        {
+          v.block(b) = vals[comp];
+          comp += fe->element_multiplicity(b);
+        }
+    }
+}
+
 
 
 template <int dim, int spacedim, typename LAC>

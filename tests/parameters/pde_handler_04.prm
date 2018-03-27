@@ -11,7 +11,7 @@ subsection Quasi static
   set Use direct solver if available                 = true
   subsection Dirichlet boundary conditions (u,u,p)
     set IDs and component masks = 0=u
-    set IDs and expressions     = 0=y>.99?1:0;0;0
+    set IDs and expressions     = 0=2*sin(2*pi*x)^2*sin(2*pi*y)*cos(2*pi*y); -2*sin(2*pi*x)*sin(2*pi*y)^2*cos(2*pi*x); sin(2*pi*x)*cos(2*pi*x)
     set Used constants          = 
   end
   subsection Domain
@@ -45,16 +45,21 @@ subsection Quasi static
   end
   subsection Exact solution
     set Function constants  = 
-    set Function expression = 0; 0; 0
+    set Function expression = 2*sin(2*pi*x)^2*sin(2*pi*y)*cos(2*pi*y); -2*sin(2*pi*x)*sin(2*pi*y)^2*cos(2*pi*x); sin(2*pi*x)*cos(2*pi*x)
     set Variable names      = x,y,t
   end
   subsection Finite element space (u,u,p)
     set Finite element space = FESystem[FE_Q(2)^d-FE_DGP(1)]
   end
   subsection Forcing terms (u,u,p)
-    set IDs and component masks = 
-    set IDs and expressions     = 
+    set IDs and component masks = 0=ALL
+    set IDs and expressions     = 0=-2*(-4*pi*sin(2*pi*x)^2*sin(2*pi*y)^2 + 4*pi*sin(2*pi*x)^2*cos(2*pi*y)^2)*sin(2*pi*x)*sin(2*pi*y)^2*cos(2*pi*x) - 16*pi^2*(-sin(2*pi*x)^2 + cos(2*pi*x)^2)*sin(2*pi*y)*cos(2*pi*y) + 16*pi*sin(2*pi*x)^3*sin(2*pi*y)^2*cos(2*pi*x)*cos(2*pi*y)^2 + 32*pi^2*sin(2*pi*x)^2*sin(2*pi*y)*cos(2*pi*y) - 2*pi*sin(2*pi*x)^2 + 2*pi*cos(2*pi*x)^2; 2*(4*pi*sin(2*pi*x)^2*sin(2*pi*y)^2 - 4*pi*sin(2*pi*y)^2*cos(2*pi*x)^2)*sin(2*pi*x)^2*sin(2*pi*y)*cos(2*pi*y) - 16*pi^2*(sin(2*pi*y)^2 - cos(2*pi*y)^2)*sin(2*pi*x)*cos(2*pi*x) + 16*pi*sin(2*pi*x)^2*sin(2*pi*y)^3*cos(2*pi*x)^2*cos(2*pi*y) - 32*pi^2*sin(2*pi*x)*sin(2*pi*y)^2*cos(2*pi*x); 0
     set Used constants          = 
+  end
+  subsection Initial guess
+    set Function constants  = 
+    set Function expression = 2*sin(2*pi*x)^2*sin(2*pi*y)*cos(2*pi*y); -2*sin(2*pi*x)*sin(2*pi*y)^2*cos(2*pi*x); sin(2*pi*x)*cos(2*pi*x)
+    set Variable names      = x,y,t
   end
   subsection Kinsol
     set Function norm stopping tolerance       = 1e-6
@@ -69,7 +74,7 @@ subsection Quasi static
     end
     subsection Newton parameters
       set Maximum allowable scaled length of the Newton step = 1e-6
-      set Maximum iterations without matrix setup            = 0
+      set Maximum iterations without matrix setup            = 10
       set No initial matrix setup                            = false
       set Relative error for different quotient computation  = 1e-6
     end
@@ -104,7 +109,7 @@ subsection Quasi static
   end
   subsection Zero average constraints (u,u,p)
     set Zero average on boundary     = 
-    set Zero average on whole domain = 
+    set Zero average on whole domain = p
   end
 end
 subsection Stokes problem

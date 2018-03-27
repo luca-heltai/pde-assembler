@@ -196,6 +196,8 @@ public:
 
   void set_constrained_dofs_to_zero(typename LAC::VectorType &v) const;
 
+  void interpolate_or_project(const Function<spacedim> &f, typename LAC::VectorType &v);
+
   const MPI_Comm &comm;
 
   const PDEBaseInterface<dim, spacedim, LAC>    &pde;

@@ -41,7 +41,7 @@ public:
     for (unsigned int q=0; q<n_q_points; ++q)
       {
         auto divu = trace(epsu[q]);
-        energies[0] += (.5*scalar_product(epsu[q],epsu[q])-divu*p[q])*JxW[q];
+        energies[0] += (scalar_product(epsu[q],epsu[q])-divu*p[q])*JxW[q];
       }
   }
 };

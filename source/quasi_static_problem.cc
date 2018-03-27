@@ -16,6 +16,7 @@ QuasiStaticProblem<dim,spacedim,LAC>::QuasiStaticProblem(const std::string &name
   eh("Error handler",interface.get_component_names(),
      print(std::vector<std::string>(interface.n_components,"L2,H1,Linfty"),";")),
   exact_solution("Exact solution", interface.n_components),
+  initial_guess("Initial guess", interface.n_components),
   solver("Solver")
 {
   dealii::ParameterAcceptor::add_parameter("Number of cycles", n_cycles);
@@ -114,6 +115,7 @@ void QuasiStaticProblem<dim,spacedim,LAC>::run()
   init();
   std::string sol_name = interface.solution_names[0];
   auto &solution = pde.v(sol_name);
+  pde.interpolate_or_project(initial_guess, solution);
 
   for (unsigned int cycle=0; cycle < n_cycles; ++cycle)
     {
@@ -152,7 +154,6 @@ void QuasiStaticProblem<dim,spacedim,LAC>::run()
           pde.setup_dofs(false);
         }
     }
-  eh.output_table(pde.pcout);
 }
 
 

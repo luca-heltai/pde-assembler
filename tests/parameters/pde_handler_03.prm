@@ -10,12 +10,12 @@ subsection Quasi static
   set Time step                                      = 0.000000
   set Use direct solver if available                 = true
   subsection Dirichlet boundary conditions (u,u,p)
-    set IDs and component masks = 0=ALL % 1=ALL % 2=ALL % 3=ALL
-    set IDs and expressions     = 0=0;0;0 % 1=0;0;0 % 2=0;0;0 % 3=y > .999 ? 1 : 0; 0; 0
-    set Used constants          = k=1
+    set IDs and component masks = 0=u
+    set IDs and expressions     = 0=-y^2 + y; 0; 0
+    set Used constants          = 
   end
   subsection Domain
-    set Colorize                      = true
+    set Colorize                      = false
     set Copy boundary to manifold ids = true
     set Copy material to manifold ids = false
     set Create default manifolds      = true
@@ -45,16 +45,21 @@ subsection Quasi static
   end
   subsection Exact solution
     set Function constants  = 
-    set Function expression = 0; 0; 0
+    set Function expression = -y^2 + y; 0; 0
     set Variable names      = x,y,t
   end
   subsection Finite element space (u,u,p)
     set Finite element space = FESystem[FE_Q(2)^d-FE_DGP(1)]
   end
   subsection Forcing terms (u,u,p)
-    set IDs and component masks = 0 = u
-    set IDs and expressions     = 0 = 0;0;0
-    set Used constants          = k=1
+    set IDs and component masks = 0=ALL
+    set IDs and expressions     = 0=2; 0; 0
+    set Used constants          = 
+  end
+  subsection Initial guess
+    set Function constants  = 
+    set Function expression = -y^2 + y; 0; 0
+    set Variable names      = x,y,t
   end
   subsection Neumann boundary conditions (u,u,p)
     set IDs and component masks = 
@@ -66,7 +71,7 @@ subsection Quasi static
     set Output format                  = vtu
     set Output partitioning            = false
     set Problem base name              = solution
-    set Subdivisions                   = 1
+    set Subdivisions                   = 2
   end
   subsection Refinement
     set Bottom fraction                        = 0.100000
@@ -86,8 +91,27 @@ subsection Quasi static
   end
   subsection Zero average constraints (u,u,p)
     set Zero average on boundary     = 
-    set Zero average on whole domain = 
+    set Zero average on whole domain = p
   end
+
+subsection Dirichlet boundary conditions (u,u,p)
+  set IDs and component masks = 0=u
+  set IDs and expressions     = 0=2*sin(2*pi*x)^2*sin(2*pi*y)*cos(2*pi*y); -2*sin(2*pi*x)*sin(2*pi*y)^2*cos(2*pi*x); sin(2*pi*x)*sin(2*pi*y)
+  set Used constants          = 
+end
+subsection Exact solution
+  set Function expression = 2*sin(2*pi*x)^2*sin(2*pi*y)*cos(2*pi*y); -2*sin(2*pi*x)*sin(2*pi*y)^2*cos(2*pi*x); sin(2*pi*x)*sin(2*pi*y)
+end
+subsection Forcing terms (u,u,p)
+  set IDs and component masks = 0=ALL
+  set IDs and expressions     = 0=-16*pi^2*(-sin(2*pi*x)^2 + cos(2*pi*x)^2)*sin(2*pi*y)*cos(2*pi*y) + 32*pi^2*sin(2*pi*x)^2*sin(2*pi*y)*cos(2*pi*y) + 2*pi*sin(2*pi*y)*cos(2*pi*x); -16*pi^2*(sin(2*pi*y)^2 - cos(2*pi*y)^2)*sin(2*pi*x)*cos(2*pi*x) - 32*pi^2*sin(2*pi*x)*sin(2*pi*y)^2*cos(2*pi*x) + 2*pi*sin(2*pi*x)*cos(2*pi*y); 0
+  set Used constants          = 
+end
+subsection Initial guess
+  set Function expression =2*sin(2*pi*x)^2*sin(2*pi*y)*cos(2*pi*y); -2*sin(2*pi*x)*sin(2*pi*y)^2*cos(2*pi*x); sin(2*pi*x)*sin(2*pi*y)
+end
+
+
 end
 subsection Stokes problem
 end
