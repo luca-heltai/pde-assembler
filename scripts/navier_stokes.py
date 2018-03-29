@@ -57,21 +57,21 @@ def main(args=None):
             total_f[i] += f_navier[i]
     
     # specify prm file
-    v_str = ("subsection Dirichlet boundary conditions (u,u,p)\n"   
+    v_str = ("subsection Problem data -- Dirichlet boundary conditions (u,u,p)\n"   
                  +"  set IDs and component masks = 0=u\n"   
                  +"  set IDs and expressions     = 0=" 
                  +  str(v[0]) + "; " + str(v[1]) + "; " + str(p) + "\n" 
                  +"  set Used constants          = \nend\n" +
-                 "subsection Exact solution\n"
+                 "subsection Problem data -- Exact solution\n"
                  +"  set Function expression = " 
                  + str(v[0]) + "; " + str(v[1]) + "; " + str(p) + "\nend\n" +
-                 "subsection Forcing terms (u,u,p)\n"   
+                 "subsection Problem data -- Forcing terms (u,u,p)\n"   
                  +"  set IDs and component masks = 0=ALL\n"   
                  +"  set IDs and expressions     = 0=" 
                  + str(total_f[0]) + "; " + str(total_f[1]) + "; "
                  + str(total_f[2]) +"\n"
                  +"  set Used constants          = \nend\n" +
-                 "subsection Initial guess\n"   
+                 "subsection Problem data -- Initial solution\n"   
                  +"  set Function expression ="   
                  + str(v[0].subs(t,0)) + "; " + str(v[1].subs(t,0)) + "; " + str(p.subs(t,0)) + "\nend\n" +  
                  "\nend")

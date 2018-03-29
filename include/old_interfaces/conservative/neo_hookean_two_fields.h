@@ -223,7 +223,7 @@ NeoHookeanTwoFieldsInterface<dim,spacedim>::compute_system_operators(const DoFHa
 
   // ASSEMBLE THE PROBLEM:
   system_op  = block_operator<2, 2, VEC >({{
-      {{ A, Bt }} ,
+      {{ A, Bt }},
       {{ B, ZeroP }}
     }
   });
@@ -232,7 +232,7 @@ NeoHookeanTwoFieldsInterface<dim,spacedim>::compute_system_operators(const DoFHa
   //const auto S = linear_operator<VEC>(matrix);
 
   prec_op = block_operator<2, 2, VEC >({{
-      {{ P00, P01 }} ,
+      {{ P00, P01 }},
       {{ P10, P11 }}
     }
   });

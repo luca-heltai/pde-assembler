@@ -46,39 +46,44 @@ PDEHandler<dim, spacedim, LAC>::PDEHandler (const std::string &name,
   :
   ParameterAcceptor(name),
   comm(communicator),
-  pde(pde),
-  pcout (std::cout,
-         (Utilities::MPI::this_mpi_process(comm)
-          == 0)),
+  interface(pde),
+    pcout (std::cout,
+           (Utilities::MPI::this_mpi_process(comm)
+            == 0)),
 
-  tria_helper(comm),
+    tria_helper(comm),
 
-  pgr("Refinement"),
+    pgr("Refinement"),
 
-  pfe("Finite element space", pde.default_fe_name,
-      pde.get_component_names(), pde.n_components),
+    pfe("Finite element space", pde.default_fe_name,
+        pde.get_component_names(), pde.n_components),
 
-  constraints(pde.n_matrices),
+    constraints(pde.n_matrices),
 
-  data_out("Output Parameters", "none", 1, pde.get_component_names(),
-           "solution", "", comm),
+    data_out("Output Parameters", "none", 1, pde.get_component_names(),
+             "solution", "", comm),
 
-  n_matrices(pde.n_matrices),
+    n_matrices(pde.n_matrices),
 
-  forcing_terms("Forcing terms",
+    iterative_solver("Solvers -- Coarse solver", "cg", 100, 1e-8),
+
+    finer_iterative_solver("Solvers -- Fine solver", "cg", 1000, 1e-7),
+
+    forcing_terms("Problem data -- Forcing terms",
+                  pde.n_components,
+                  pde.get_component_names(), ""),
+    neumann_bcs("Problem data -- Neumann boundary conditions",
                 pde.n_components,
                 pde.get_component_names(), ""),
-  neumann_bcs("Neumann boundary conditions",
-              pde.n_components,
-              pde.get_component_names(), ""),
-  dirichlet_bcs("Dirichlet boundary conditions",
-                pde.n_components,
-                pde.get_component_names(), "0=ALL"),
-  zero_average("Zero average constraints",
-               pde.n_components,
-               pde.get_component_names() ),
+    dirichlet_bcs("Problem data -- Dirichlet boundary conditions",
+                  pde.n_components,
+                  pde.get_component_names(), "0=ALL"),
 
-  we_are_parallel(Utilities::MPI::n_mpi_processes(comm) > 1)
+    zero_average("Problem data -- Zero average constraints",
+                 pde.n_components,
+                 pde.get_component_names() ),
+
+    we_are_parallel(Utilities::MPI::n_mpi_processes(comm) > 1)
 {
 
   pde.initialize_simulator (*this);
@@ -104,7 +109,7 @@ PDEHandler<dim, spacedim, LAC>::PDEHandler (const std::string &name,
 template<int dim, int spacedim, typename LAC>
 void PDEHandler<dim,spacedim,LAC>::init()
 {
-  pde.connect_to_signals();
+  interface.connect_to_signals();
   make_grid_fe();
   setup_dofs(true);
 }
@@ -174,7 +179,7 @@ void PDEHandler<dim, spacedim, LAC>::setup_dofs (const bool &first_run)
                                                             std::accumulate(dofs_per_block.begin(), dofs_per_block.begin() + i + 1, 0)));
   }
 
-  update_functions_and_constraints(current_time);
+  update_functions_and_constraints(current_time,current_time_step);
 
   ScopedLACInitializer initializer(dofs_per_block,
                                    partitioning,
@@ -182,7 +187,7 @@ void PDEHandler<dim, spacedim, LAC>::setup_dofs (const bool &first_run)
                                    comm);
 
   AssertDimension(solutions.size(), locally_relevant_solutions.size());
-  AssertDimension(solutions.size(), pde.n_vectors);
+  AssertDimension(solutions.size(), interface.n_vectors);
   for (unsigned int i=0; i<solutions.size(); ++i)
     {
       initializer(*solutions[i]);
@@ -195,7 +200,7 @@ void PDEHandler<dim, spacedim, LAC>::setup_dofs (const bool &first_run)
       initializer(*matrix_sparsities[i],
                   *dof_handler,
                   *constraints[i],
-                  pde.get_matrix_coupling(i));
+                  interface.get_matrix_coupling(i));
       matrices[i]->reinit(*matrix_sparsities[i]);
     }
 
@@ -209,8 +214,8 @@ void PDEHandler<dim, spacedim, LAC>::setup_dofs (const bool &first_run)
 //      else if (!we_are_parallel)
 //        {
 //          const QGauss<dim> quadrature_formula(fe->degree + 1);
-//          VectorTools::project(interface.get_project_mapping(), *dof_handler, *constraints[0], quadrature_formula, initial_solution, solution);
-//          VectorTools::project(interface.get_project_mapping(), *dof_handler, *constraints[0], quadrature_formula, initial_solution_dot, solution_dot);
+//          VectorTools::project(interface.get_project_mapping(), *dof_handler, C(0), quadrature_formula, initial_solution, solution);
+//          VectorTools::project(interface.get_project_mapping(), *dof_handler, C(0), quadrature_formula, initial_solution_dot, solution_dot);
 //        }
 //      else
 //        {
@@ -254,7 +259,7 @@ apply_neumann_bcs (
       unsigned int face_id = cell->face(face)->boundary_id();
       if (cell->face(face)->at_boundary() && neumann_bcs.acts_on_id(face_id))
         {
-          pde.reinit(dummy, cell, face, scratch);
+          interface.reinit(dummy, cell, face, scratch);
 
           auto &fev = scratch.get_current_fe_values();
           auto &q_points = scratch.get_quadrature_points();
@@ -262,11 +267,11 @@ apply_neumann_bcs (
 
           for (unsigned int q=0; q<q_points.size(); ++q)
             {
-              Vector<double> T(pde.n_components);
+              Vector<double> T(interface.n_components);
               neumann_bcs.get_mapped_function(face_id)->vector_value(q_points[q], T);
 
               for (unsigned int i=0; i<local_residual.size(); ++i)
-                for (unsigned int c=0; c<pde.n_components; ++c)
+                for (unsigned int c=0; c<interface.n_components; ++c)
                   local_residual[i] -= T[c]*fev.shape_value_component(i,q,c)*JxW[q];
 
             }// end loop over quadrature points
@@ -292,14 +297,14 @@ apply_forcing_terms (const typename DoFHandler<dim,spacedim>::active_cell_iterat
   if (forcing_terms.acts_on_id(cell_id))
     {
       double dummy = 0.0;
-      pde.reinit(dummy, cell, scratch);
+      interface.reinit(dummy, cell, scratch);
 
       auto &fev = scratch.get_current_fe_values();
       auto &q_points = scratch.get_quadrature_points();
       auto &JxW = scratch.get_JxW_values();
       for (unsigned int q=0; q<q_points.size(); ++q)
         for (unsigned int i=0; i<local_residual.size(); ++i)
-          for (unsigned int c=0; c<pde.n_components; ++c)
+          for (unsigned int c=0; c<interface.n_components; ++c)
             {
               double B = forcing_terms.get_mapped_function(cell_id)->value(q_points[q],c);
               local_residual[i] -= B*fev.shape_value_component(i,q,c)*JxW[q];
@@ -317,7 +322,7 @@ apply_dirichlet_bcs (const DoFHandler<dim,spacedim> &dof_handler,
 {
   try
     {
-      bc.interpolate_boundary_values(pde.get_bc_mapping(),dof_handler,constraints);
+      bc.interpolate_boundary_values(interface.get_bc_mapping(),dof_handler,constraints);
     }
   catch (...)
     {
@@ -326,7 +331,7 @@ apply_dirichlet_bcs (const DoFHandler<dim,spacedim> &dof_handler,
                              "currently supported on deal.II in parallel settings.\n"
                              "Feel free to submit a patch :)"));
       const QGauss<dim-1> quad(fe->degree+1);
-      bc.project_boundary_values(pde.get_bc_mapping(),dof_handler,quad,constraints);
+      bc.project_boundary_values(interface.get_bc_mapping(),dof_handler,quad,constraints);
     }
   // unsigned int codim = spacedim - dim;
   // if (codim == 0)
@@ -341,7 +346,7 @@ void PDEHandler<dim, spacedim, LAC>::assemble_matrices
  const std::vector<std::shared_ptr<typename LAC::VectorType>>  &input_vectors)
 {
   solutions = input_vectors;
-  pde.set_jacobian_coefficients(coefficients);
+  interface.set_jacobian_coefficients(coefficients);
 
   assemble_matrices();
 }
@@ -356,13 +361,13 @@ void PDEHandler<dim, spacedim, LAC>::assemble_matrices()
   const QGauss<dim> quadrature_formula(fe->degree + 1);
   const QGauss < dim - 1 > face_quadrature_formula(fe->degree + 1);
 
-  FEValuesCache<dim,spacedim> fev_cache(pde.get_fe_mapping(),
+  FEValuesCache<dim,spacedim> fev_cache(interface.get_fe_mapping(),
                                         *fe, quadrature_formula,
-                                        pde.get_cell_update_flags(),
+                                        interface.get_cell_update_flags(),
                                         face_quadrature_formula,
-                                        pde.get_face_update_flags());
+                                        interface.get_face_update_flags());
 
-  pde.solution_preprocessing(fev_cache);
+  interface.solution_preprocessing(fev_cache);
 
   typedef
   FilteredIterator<typename DoFHandler<dim, spacedim>::active_cell_iterator>
@@ -387,7 +392,7 @@ void PDEHandler<dim, spacedim, LAC>::assemble_matrices()
                          FEValuesCache<dim,spacedim> &scratch,
                          pidomus::CopyData & data)
   {
-    this->pde.assemble_local_matrices(cell, scratch, data);
+    this->interface.assemble_local_matrices(cell, scratch, data);
   };
 
 
@@ -406,23 +411,74 @@ void PDEHandler<dim, spacedim, LAC>::assemble_matrices()
     matrices[i]->compress(VectorOperation::add);
 }
 
+
+
+template<int dim, int spacedim, typename LAC>
+typename LAC::VectorType &PDEHandler<dim,spacedim,LAC>::v(const std::string &vec_name) const
+{
+  Assert(interface.solution_index.find(vec_name) != interface.solution_index.end(),
+         ExcMessage("Vector not found"));
+  return *solutions[interface.solution_index.at(vec_name)];
+}
+
+
+
+template<int dim, int spacedim, typename LAC>
+typename  LAC::BlockMatrix &PDEHandler<dim,spacedim,LAC>::m(const std::string &matrix_name) const
+{
+  Assert(interface.matrix_index.find(matrix_name) != interface.matrix_index.end(),
+         ExcMessage("Matrix not found"));
+  return *matrices[interface.matrix_index.at(matrix_name)];
+}
+
+
+
+template<int dim, int spacedim, typename LAC>
+typename LAC::VectorType &PDEHandler<dim,spacedim,LAC>::v(const unsigned int vec_index) const
+{
+  Assert(vec_index < interface.n_vectors,
+         ExcIndexRange(vec_index, 0, interface.n_vectors));
+  return *solutions[vec_index];
+}
+
+
+
+template<int dim, int spacedim, typename LAC>
+typename LAC::BlockMatrix &PDEHandler<dim,spacedim,LAC>::m(const unsigned int matrix_index) const
+{
+  Assert(matrix_index < interface.n_vectors,
+         ExcIndexRange(matrix_index, 0, interface.n_vectors));
+  return *matrices[matrix_index];
+}
+
+
+template<int dim, int spacedim, typename LAC>
+ConstraintMatrix &PDEHandler<dim,spacedim,LAC>::C(const unsigned int constraint_index) const
+{
+  Assert(constraint_index < interface.n_matrices,
+         ExcIndexRange(constraint_index, 0, interface.n_matrices));
+  return *constraints[constraint_index];
+}
+
+
+
 template<int dim, int spacedim, typename LAC>
 void PDEHandler<dim,spacedim,LAC>::interpolate_or_project(const Function<spacedim> &f, typename LAC::VectorType &v)
 {
   if (fe->has_support_points())
     {
-      VectorTools::interpolate(pde.get_default_mapping(), *dof_handler, f, v);
+      VectorTools::interpolate(interface.get_default_mapping(), *dof_handler, f, v);
     }
   else if (!we_are_parallel)
     {
       const QGauss<dim> quadrature_formula(fe->degree + 1);
-      VectorTools::project(pde.get_default_mapping(), *dof_handler, *constraints[0],
+      VectorTools::project(interface.get_default_mapping(), *dof_handler, C(0),
                            quadrature_formula, f, v);
     }
   else
     {
       Point<spacedim> p;
-      Vector<double> vals(pde.n_components);
+      Vector<double> vals(interface.n_components);
       f.vector_value(p, vals);
 
       unsigned int comp = 0;
@@ -432,6 +488,112 @@ void PDEHandler<dim,spacedim,LAC>::interpolate_or_project(const Function<spacedi
           comp += fe->element_multiplicity(b);
         }
     }
+}
+
+
+
+template<int dim, int spacedim, typename LAC>
+void PDEHandler<dim,spacedim,LAC>::solve(typename LAC::VectorType &dst,
+                                         const typename LAC::VectorType &src) const
+{
+  bool done = false;
+  if (use_direct_solver) // try direct solver if we were asked so
+    done = solve_direct(dst, src);
+
+  if (done == false) // revert to iterative solver otherwise
+    {
+      try
+        {
+          iterative_solver.vmult(dst, src);
+        }
+      catch (const std::exception &e)
+        {
+          if (enable_finer_preconditioner)
+            {
+              finer_iterative_solver.vmult(dst,src);
+            }
+          else
+            {
+              AssertThrow(false,ExcMessage(e.what()));
+            }
+
+        }
+    }
+}
+
+
+template<int dim, int spacedim, typename LAC>
+bool PDEHandler<dim, spacedim, LAC>::solve_direct(typename LADealII::VectorType &dst,
+                                                  const typename LADealII::VectorType &src) const
+{
+  if (we_are_parallel)
+    return false;
+  else
+    {
+      direct_umfpack.vmult(dst,src);
+      return true;
+    }
+}
+
+
+template<int dim, int spacedim, typename LAC>
+bool PDEHandler<dim, spacedim, LAC>::solve_direct(typename LATrilinos::VectorType &dst,
+                                                  const typename LATrilinos::VectorType &src) const
+{
+  if (interface.n_components == 1)
+    {
+      Assert(direct_trilinos, ExcInternalError());
+      direct_trilinos->solve(dst.block(0),src.block(0));
+      return true;
+    }
+  else
+    return false;
+}
+
+
+template<int dim, int spacedim, typename LAC>
+void PDEHandler<dim, spacedim, LAC>::initialize_solver()
+{
+  bool done = false;
+  if (use_direct_solver)
+    done = factorize_matrix(m(0));
+
+  if (done == false)
+    {
+      interface.compute_system_operators(matrices, iterative_solver.op, iterative_solver.prec,
+                                         finer_iterative_solver.prec);
+
+      finer_iterative_solver.op = iterative_solver.op;
+
+      iterative_solver.parse_parameters_call_back();
+      finer_iterative_solver.parse_parameters_call_back();
+    }
+}
+
+
+
+template<int dim, int spacedim, typename LAC>
+bool PDEHandler<dim, spacedim, LAC>::factorize_matrix(LADealII::BlockMatrix &A)
+{
+  direct_umfpack.initialize(A);
+  return true;
+}
+
+
+template<int dim, int spacedim, typename LAC>
+bool PDEHandler<dim, spacedim, LAC>::factorize_matrix(LATrilinos::BlockMatrix &A)
+{
+  if (interface.n_components == 1)
+    {
+      direct_solver_control = UP(new SolverControl());
+      direct_trilinos = UP(new TrilinosWrappers::SolverDirect(*direct_solver_control,
+                                                              TrilinosWrappers::SolverDirect::AdditionalData(false,
+                                                                  direct_solver_type)));
+      direct_trilinos->initialize(A.block(0,0));
+      return true;
+    }
+  else
+    return false;
 }
 
 
@@ -448,7 +610,7 @@ PDEHandler<dim, spacedim, LAC>::residual(const std::vector<double>              
 
   // syncronize(t,solution,solution_dot);
   solutions = input_vectors;
-  pde.set_jacobian_coefficients(coefficients);
+  interface.set_jacobian_coefficients(coefficients);
 
   residual(residual_vector);
 }
@@ -462,13 +624,13 @@ PDEHandler<dim, spacedim, LAC>::residual(typename LAC::VectorType &residual_vect
   const QGauss < dim - 1 > face_quadrature_formula(fe->degree + 1);
 
 
-  FEValuesCache<dim,spacedim> fev_cache(pde.get_fe_mapping(),
+  FEValuesCache<dim,spacedim> fev_cache(interface.get_fe_mapping(),
                                         *fe, quadrature_formula,
-                                        pde.get_cell_update_flags(),
+                                        interface.get_cell_update_flags(),
                                         face_quadrature_formula,
-                                        pde.get_face_update_flags());
+                                        interface.get_face_update_flags());
 
-  pde.solution_preprocessing(fev_cache);
+  interface.solution_preprocessing(fev_cache);
 
   residual_vector = 0;
 
@@ -485,7 +647,7 @@ PDEHandler<dim, spacedim, LAC>::residual(typename LAC::VectorType &residual_vect
                          FEValuesCache<dim,spacedim> &scratch,
                          pidomus::CopyData & data)
   {
-    this->pde.assemble_local_system_residual(cell,scratch,data);
+    this->interface.assemble_local_system_residual(cell,scratch,data);
     // apply conservative loads
     this->apply_forcing_terms(cell, scratch, data.local_residual);
 
@@ -534,12 +696,30 @@ declare_parameters (ParameterHandler &prm)
                   "1",
                   Patterns::Integer (0));
 
-
+  prm.enter_subsection("Solvers -- Direct solver");
   add_parameter(  prm,
                   &use_direct_solver,
                   "Use direct solver if available",
                   "true",
                   Patterns::Bool());
+
+  add_parameter( prm,
+                 &direct_solver_type,
+                 "Direct solver type",
+                 "umfpack",
+                 Patterns::Selection(std::is_same<LAC,LADealII>::value ?
+                                     "umfpack" : "Amesos_Lapack|Amesos_Scalapack|"
+                                     "Amesos_Klu|Amesos_Umfpack|Amesos_Pardiso|"
+                                     "Amesos_Taucs|Amesos_Superlu|Amesos_Superludist|"
+                                     "Amesos_Dscpack|Amesos_Mumps"));
+
+  add_parameter(  prm,
+                  &enable_finer_preconditioner,
+                  "Enable finer preconditioner",
+                  "false",
+                  Patterns::Bool());
+
+  prm.leave_subsection();
 
   add_parameter(  prm,
                   &adaptive_refinement,
@@ -552,23 +732,16 @@ declare_parameters (ParameterHandler &prm)
                   "Print some useful informations about processes",
                   "true",
                   Patterns::Bool());
-
 }
 
 
 template <int dim, int spacedim, typename LAC>
-void
-PDEHandler<dim, spacedim, LAC>::parse_parameters_call_back()
-{
-  use_direct_solver &= (typeid(typename LAC::BlockMatrix) == typeid(dealii::BlockSparseMatrix<double>));
-}
-
-
-template <int dim, int spacedim, typename LAC>
-void PDEHandler<dim, spacedim, LAC>::update_functions_and_constraints (const double &t)
+void PDEHandler<dim, spacedim, LAC>::update_functions_and_constraints (const double &t, const double &time_step)
 {
   auto _timer = computing_timer.scoped_timer ("Update functions and constraints");
   current_time = t;
+  current_time_step = time_step;
+
   if (!std::isnan(t))
     {
       dirichlet_bcs.set_time(t);
@@ -582,15 +755,15 @@ void PDEHandler<dim, spacedim, LAC>::update_functions_and_constraints (const dou
 
   // compute hanging nodes
   DoFTools::make_hanging_node_constraints (*dof_handler,
-                                           *constraints[0]);
+                                           C(0));
 
-  zero_average.apply_zero_average_constraints(*dof_handler, *constraints[0]);
+  zero_average.apply_zero_average_constraints(*dof_handler, C(0));
 
   // compute boundary values for the system matrix
-  apply_dirichlet_bcs(*dof_handler, dirichlet_bcs, *constraints[0]);
+  apply_dirichlet_bcs(*dof_handler, dirichlet_bcs, C(0));
 
   // apply zero average constraints to the system matrix
-  zero_average.apply_zero_average_constraints(*dof_handler, *constraints[0]);
+  zero_average.apply_zero_average_constraints(*dof_handler, C(0));
 
   // add user-supplied constraints
   // signals.update_constraint_matrices(constraints);
@@ -608,24 +781,26 @@ output_solution (const std::string &suffix) const
 {
   data_out.prepare_data_output( *dof_handler,
                                 suffix);
-  auto cnames = pde.component_names;
+  auto cnames = interface.component_names;
   for (unsigned int i=0; i<solutions.size(); ++i)
     *locally_relevant_solutions[i] = *solutions[i];
 
   for (unsigned int i=0; i<solutions.size(); ++i)
     {
-      std::vector<std::string> names(cnames.size(), pde.solution_names[i]);
+      std::vector<std::string> names(cnames.size(), interface.solution_names[i]);
       for (unsigned int j=0; j<cnames.size(); ++j)
         names[j] += "_" + cnames[j];
       data_out.add_data_vector (*locally_relevant_solutions[i], print(names));
     }
 
-  data_out.write_data_and_clear(pde.get_output_mapping());
+  data_out.write_data_and_clear(interface.get_output_mapping());
 }
 
 
 #define INSTANTIATE(dim,spacedim,LAC) \
   template class PDEHandler<dim,spacedim,LAC>;
+
+
 
 
 PIDOMUS_INSTANTIATE(INSTANTIATE)

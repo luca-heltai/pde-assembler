@@ -413,6 +413,32 @@ PDEBaseInterface<dim,spacedim,LAC>::connect_to_signals() const
 {}
 
 
+
+template <int dim, int spacedim, typename LAC>
+void
+PDEBaseInterface<dim,spacedim,LAC>::
+compute_system_operators(const std::vector<shared_ptr<typename LADealII::BlockMatrix> >,
+                         LinearOperator<typename LADealII::VectorType> &,
+                         LinearOperator<typename LADealII::VectorType> &,
+                         LinearOperator<typename LADealII::VectorType> &) const
+{}
+
+
+
+template <int dim, int spacedim, typename LAC>
+void
+PDEBaseInterface<dim,spacedim,LAC>::
+compute_system_operators(const std::vector<shared_ptr<LATrilinos::BlockMatrix> >,
+                         LinearOperator<LATrilinos::VectorType> &,
+                         LinearOperator<LATrilinos::VectorType> &,
+                         LinearOperator<LATrilinos::VectorType> &) const
+{
+  Assert(false, ExcPureFunctionCalled ());
+}
+
+
+
+
 #define INSTANTIATE(dim,spacedim,LAC) \
   template class PDEBaseInterface<dim,spacedim,LAC>;
 

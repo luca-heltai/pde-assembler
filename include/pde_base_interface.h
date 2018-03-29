@@ -160,6 +160,46 @@ public:
                                                std::vector<std::vector<double> > &local_residuals,
                                                bool compute_only_system_terms) const;
 
+
+  /**
+   * Compute linear operators needed by the problem: - @p system_op represents
+   * the system matrix associated to the Newton's iterations; - @p prec_op
+   * represents the preconditioner; - @p prec_op_finer represents a finer
+   * preconditioner that can be used in the case the problem does not converge
+   * using @p prec_op .
+   *
+   * To clarify the difference between @p prec_op and @p prec_op_finer consider
+   * the case where you have a matrix A and you want to provide an 'inverse'
+   * using AMG. A possible strategy consist in using the linear operator
+   * associated to AMG and a further strategy is to invert A using AMG. In
+   * detail, @p prec_op should be \code{.cpp} auto A_inv = linear_operator(A,
+   * AMG) \endcode while @p prec_op_finer \code{.cpp} auto A_inv =
+   * inverse_operator(A, solver, AMG) \endcode
+   *
+   * In the .prm file it is possible to specify the maximum
+   * number of iterations allowed for the solver in the case we are
+   * using @p prec_op or @p prec_op_finer.
+   *
+   * To enable the finer preconditioner it is sufficient to set
+   * "Enable finer preconditioner" equals to true.
+   */
+  virtual void compute_system_operators(const std::vector<shared_ptr<typename LATrilinos::BlockMatrix> >,
+                                        LinearOperator<LATrilinos::VectorType> &system_op,
+                                        LinearOperator<LATrilinos::VectorType> &prec_op,
+                                        LinearOperator<LATrilinos::VectorType> &prec_op_finer) const;
+
+
+  /**
+   * Compute linear operators needed by the problem. When using
+   * deal.II vector and matrix types, this function is empty, since a
+   * direct solver is used by default.
+   */
+  virtual void compute_system_operators(const std::vector<shared_ptr<typename LADealII::BlockMatrix> >,
+                                        LinearOperator<typename LADealII::VectorType> &,
+                                        LinearOperator<typename LADealII::VectorType> &,
+                                        LinearOperator<typename LADealII::VectorType> &) const;
+
+
   /**
    * Assemble energies and residuals. To be used when computing energetical
    * quantities, i.e., the energy here is a SacadoSacado double, while the residual

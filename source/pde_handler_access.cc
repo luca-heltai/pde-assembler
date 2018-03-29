@@ -124,6 +124,22 @@ PDEHandlerAccess<dim,spacedim,LAC>::get_dirichlet_bcs() const
   return simulator->dirichlet_bcs;
 }
 
+
+
+template<int dim, int spacedim, typename LAC>
+double PDEHandlerAccess<dim,spacedim,LAC>::get_current_time() const
+{
+  return simulator->current_time;
+}
+
+
+
+template<int dim, int spacedim, typename LAC>
+double PDEHandlerAccess<dim,spacedim,LAC>::get_current_time_step() const
+{
+  return simulator->current_time_step;
+}
+
 #define INSTANTIATE(dim,spacedim,LA) \
   template class PDEHandlerAccess<dim,spacedim,LA>;
 

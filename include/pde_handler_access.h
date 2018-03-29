@@ -123,6 +123,16 @@ public:
   const ParsedDirichletBCs<dim,spacedim> &
   get_dirichlet_bcs () const;
 
+  /**
+   * Current time.
+   */
+  double get_current_time() const;
+
+  /**
+   * Current time step.
+   */
+  double get_current_time_step() const;
+
   /** @} */
 
 private:

@@ -12,12 +12,12 @@ QuasiStaticProblem<dim,spacedim,LAC>::QuasiStaticProblem(const std::string &name
   dealii::ParameterAcceptor(name),
   comm(comm),
   interface(interface),
-  pde(name,interface,comm),
-  eh("Error handler",interface.get_component_names(),
-     print(std::vector<std::string>(interface.n_components,"L2,H1,Linfty"),";")),
-  exact_solution("Exact solution", interface.n_components),
-  initial_guess("Initial guess", interface.n_components),
-  solver("Solver")
+    pde(name,interface,comm),
+    eh("Error handler",interface.get_component_names(),
+       print(std::vector<std::string>(interface.n_components,"L2,H1,Linfty"),";")),
+    exact_solution("Exact solution", interface.n_components),
+    initial_guess("Initial guess", interface.n_components),
+    solver("Solver")
 {
   dealii::ParameterAcceptor::add_parameter("Number of cycles", n_cycles);
   dealii::ParameterAcceptor::add_parameter("Starting time", start_time);
@@ -115,17 +115,18 @@ void QuasiStaticProblem<dim,spacedim,LAC>::run()
   init();
   std::string sol_name = interface.solution_names[0];
   auto &solution = pde.v(sol_name);
+  auto &C = pde.C(0);
   pde.interpolate_or_project(initial_guess, solution);
 
   for (unsigned int cycle=0; cycle < n_cycles; ++cycle)
     {
       unsigned int time_step_number=0;
-      pde.update_functions_and_constraints(start_time);
       for (double t=start_time; t<=final_time; t+= time_step, ++time_step_number)
         {
-          pde.constraints[0]->distribute(solution);
+          pde.update_functions_and_constraints(t,time_step);
+          C.distribute(solution);
           kinsol->solve(solution);
-          pde.constraints[0]->distribute(solution);
+          C.distribute(solution);
 
           std::stringstream s;
           if (n_cycles > 1)
@@ -149,7 +150,6 @@ void QuasiStaticProblem<dim,spacedim,LAC>::run()
       // Now refine the grid, only if we are not on last trip.
       if (cycle < n_cycles-1)
         {
-          pde.update_functions_and_constraints(start_time);
           pde.refine_mesh();
           pde.setup_dofs(false);
         }

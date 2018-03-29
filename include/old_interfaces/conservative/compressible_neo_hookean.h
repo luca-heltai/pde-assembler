@@ -216,7 +216,7 @@ CompressibleNeoHookeanInterface<dim,spacedim>::compute_system_operators(const Do
   //const auto S = linear_operator<VEC>(matrix);
 
   prec_op = block_operator<1, 1, VEC >({{
-      {{ P00}} ,
+      {{ P00}},
     }
   });
 }

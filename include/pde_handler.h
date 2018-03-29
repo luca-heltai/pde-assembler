@@ -1,6 +1,28 @@
 #ifndef pde_handler_h
 #define pde_handler_h
 
+#include "pde_base_interface.h"
+#include "pde_handler_access.h"
+#include "pidomus_signals.h"
+
+#include "lac/lac_type.h"
+#include "lac/lac_initializer.h"
+#include "tria_helper.h"
+
+#include <deal2lkit/parsed_grid_generator.h>
+#include <deal2lkit/parsed_finite_element.h>
+#include <deal2lkit/parsed_grid_refinement.h>
+#include <deal2lkit/error_handler.h>
+#include <deal2lkit/parsed_function.h>
+#include <deal2lkit/parsed_solver.h>
+#include <deal2lkit/parameter_acceptor.h>
+#include <deal2lkit/parsed_zero_average_constraints.h>
+#include <deal2lkit/parsed_mapped_functions.h>
+#include <deal2lkit/parsed_dirichlet_bcs.h>
+
+#include <deal2lkit/any_data.h>
+#include <deal2lkit/fe_values_cache.h>
+
 
 #include <deal.II/base/timer.h>
 // #include <deal.II/base/parameter_handler.h>
@@ -8,7 +30,8 @@
 #include <deal.II/lac/trilinos_precondition.h>
 #include <deal.II/lac/trilinos_block_sparse_matrix.h>
 #include <deal.II/lac/linear_operator.h>
-
+#include <deal.II/lac/sparse_direct.h>
+#include <deal.II/lac/trilinos_solver.h>
 
 #include <deal.II/distributed/solution_transfer.h>
 #include <deal.II/distributed/tria.h>
@@ -18,28 +41,6 @@
 
 
 // #include <deal.II/lac/precondition.h>
-
-
-#include "pde_base_interface.h"
-#include "pde_handler_access.h"
-#include "pidomus_signals.h"
-
-#include <deal2lkit/parsed_grid_generator.h>
-#include <deal2lkit/parsed_finite_element.h>
-#include <deal2lkit/parsed_grid_refinement.h>
-#include <deal2lkit/error_handler.h>
-#include <deal2lkit/parsed_function.h>
-#include <deal2lkit/parameter_acceptor.h>
-#include <deal2lkit/parsed_zero_average_constraints.h>
-#include <deal2lkit/parsed_mapped_functions.h>
-#include <deal2lkit/parsed_dirichlet_bcs.h>
-
-#include <deal2lkit/any_data.h>
-#include <deal2lkit/fe_values_cache.h>
-
-#include "lac/lac_type.h"
-#include "lac/lac_initializer.h"
-#include "tria_helper.h"
 
 using namespace dealii;
 using namespace deal2lkit;
@@ -64,7 +65,7 @@ public:
    * @param comm
    */
   PDEHandler (const std::string &name,
-              const PDEBaseInterface<dim, spacedim, LAC> &pde,
+              const PDEBaseInterface<dim, spacedim, LAC> &interface,
               const MPI_Comm &comm = MPI_COMM_WORLD);
 
   /**
@@ -108,14 +109,12 @@ public:
   /**
    * Set time to @p t for forcing terms and boundary conditions
    */
-  void update_functions_and_constraints(const double &t);
+  void update_functions_and_constraints(const double &t, const double &time_step=0);
 
 
   /**
-   * Apply Dirichlet boundary conditions.
-   * It takes as argument a DoF handler @p dof_handler, a
-   * ParsedDirichletBCs and a constraint matrix @p constraints.
-   *
+   * Apply Dirichlet boundary conditions. It takes as argument a DoF handler @p
+   * dof_handler, a ParsedDirichletBCs and a constraint matrix @p constraints.
    */
   void apply_dirichlet_bcs (const DoFHandler<dim,spacedim> &dof_handler,
                             const ParsedDirichletBCs<dim,spacedim> &bc,
@@ -158,19 +157,16 @@ public:
   void assemble_matrices ();
 
 
-  typename LAC::VectorType &v(const std::string &vec_name) const
-  {
-    Assert(pde.solution_index.find(vec_name) != pde.solution_index.end(),
-           ExcMessage("Vector not found"));
-    return *solutions[pde.solution_index.at(vec_name)];
-  }
+  typename LAC::VectorType &v(const std::string &vec_name) const;
 
-  typename LAC::BlockMatrix &m(const std::string &matrix_name) const
-  {
-    Assert(pde.matrix_index.find(matrix_name) != pde.matrix_index.end(),
-           ExcMessage("Matrix not found"));
-    return *matrices[pde.matrix_index.at(matrix_name)];
-  }
+  typename LAC::BlockMatrix &m(const std::string &matrix_name) const;
+
+  typename LAC::VectorType &v(const unsigned int vec_index) const;
+
+  typename LAC::BlockMatrix &m(const unsigned int matrix_index) const;
+
+  ConstraintMatrix &C(const unsigned int constraint_index) const;
+
 
   template<int odim=dim>
   typename std::enable_if<(odim==1)>::type refine_mesh ();
@@ -198,11 +194,51 @@ public:
 
   void interpolate_or_project(const Function<spacedim> &f, typename LAC::VectorType &v);
 
+
+  /**
+   * According to the parameters and the matrix type, either factorize the matrix, or
+   * setup the iterative solver.
+   */
+  void initialize_solver();
+
+  /**
+   * Solve the current Jacobian system, using the iterative or the direct solver
+   * (if available).
+   *
+   * @param dst
+   * @param src
+   */
+  void solve(typename LAC::VectorType &dst, const typename LAC::VectorType &src) const;
+
+
   const MPI_Comm &comm;
 
-  const PDEBaseInterface<dim, spacedim, LAC>    &pde;
+  const PDEBaseInterface<dim, spacedim, LAC>    &interface;
 
   ConditionalOStream        pcout;
+
+public:
+  /**
+   * Use one of deal.II direct solver for the solution of the system.
+   */
+  bool solve_direct(typename LADealII::VectorType &dst,
+                    const typename LADealII::VectorType &src) const;
+
+  /**
+   * Use one of Trilinos direct solvers for the solution of the system.
+   */
+  bool solve_direct(typename LATrilinos::VectorType &dst,
+                    const typename LATrilinos::VectorType &src) const;
+
+  /**
+   * Perform matrix factorization for deal.II Matrices.
+   */
+  bool factorize_matrix(typename LADealII::BlockMatrix &A);
+
+  /**
+   * Perform matrix factorization for Trilinos Matrices.
+   */
+  bool factorize_matrix(typename LATrilinos::BlockMatrix &A);
 
   TriaHelper<dim,spacedim,LAC> tria_helper;
   std::shared_ptr<Triangulation<dim,spacedim> >   triangulation;
@@ -217,8 +253,7 @@ public:
   std::vector<LinearOperator<typename LAC::VectorType>> operators;
 
   mutable ParsedDataOut<dim, spacedim> data_out;
-  //// current time
-public:
+
   /**
    * Vector of solutions.
    */
@@ -229,13 +264,6 @@ public:
    */
   std::vector<shared_ptr<typename LAC::VectorType> > locally_relevant_solutions;
 
-  /**
-   * Current parameters.
-   */
-  std::map<std::string, double> parameters;
-
-  std::vector<double> energy_coefficients;
-
   unsigned int initial_global_refinement;
 
   /**
@@ -244,10 +272,27 @@ public:
   mutable TimeMonitor       computing_timer;
 
   double current_time = 0;
+  double current_time_step = 0;
 
   const unsigned int n_matrices;
   std::vector<shared_ptr<typename LAC::BlockSparsityPattern> > matrix_sparsities;
   std::vector<shared_ptr<typename LAC::BlockMatrix> >  matrices;
+
+  /**
+   * Parsed solver for standard iterations.
+   */
+  ParsedSolver<typename LAC::VectorType> iterative_solver;
+
+  /**
+   * Parsed solver for finer iterations.
+   */
+  ParsedSolver<typename LAC::VectorType> finer_iterative_solver;
+
+  SparseDirectUMFPACK             direct_umfpack;
+  std::unique_ptr<SolverControl>  direct_solver_control;
+  std::unique_ptr<TrilinosWrappers::SolverDirect>  direct_trilinos;
+
+  std::string direct_solver_type;
 
   ParsedMappedFunctions<spacedim>  forcing_terms; // on the volume
   ParsedMappedFunctions<spacedim>  neumann_bcs;
@@ -270,6 +315,11 @@ public:
   bool verbose;
 
   /**
+   * If this is enabled, a second attempt is done if the first fails.
+   */
+  bool enable_finer_preconditioner;
+
+  /**
    * Struct containing the signals
    */
   Signals<dim,spacedim,LAC>    signals;
@@ -282,7 +332,6 @@ public:
 
   virtual void declare_parameters(ParameterHandler &prm);
 
-  virtual void parse_parameters_call_back();
 public:
 
   /**
@@ -293,6 +342,7 @@ public:
 };
 
 // Template and inline functions.
+
 
 
 template <int dim, int spacedim, typename LAC>
@@ -318,7 +368,7 @@ PDEHandler<dim, spacedim, LAC>::refine_mesh()
     {
       Vector<float> estimated_error_per_cell (triangulation->n_active_cells());
 
-      pde.estimate_error_per_cell(estimated_error_per_cell);
+      interface.estimate_error_per_cell(estimated_error_per_cell);
 
       pgr.mark_cells(estimated_error_per_cell, *triangulation);
     }
@@ -391,8 +441,8 @@ refine_and_transfer_solutions(std::vector<shared_ptr<LADealII::VectorType>> &y,
   signals.begin_refine_and_transfer_solutions();
   SolutionTransfer<dim, LADealII::VectorType, DoFHandler<dim,spacedim> > sol_tr(*dof_handler);
 
-  std::vector<LADealII::VectorType> old_sols(pde.n_vectors);
-  for (unsigned int i=0; i<pde.n_vectors; ++i)
+  std::vector<LADealII::VectorType> old_sols(interface.n_vectors);
+  for (unsigned int i=0; i<interface.n_vectors; ++i)
     old_sols[i] = *y[i];
 
   triangulation->prepare_coarsening_and_refinement();
@@ -405,8 +455,8 @@ refine_and_transfer_solutions(std::vector<shared_ptr<LADealII::VectorType>> &y,
 
   setup_dofs(false);
 
-  std::vector<LADealII::VectorType> new_sols(pde.n_vectors);
-  for (unsigned int i=0; i<pde.n_vectors; ++i)
+  std::vector<LADealII::VectorType> new_sols(interface.n_vectors);
+  for (unsigned int i=0; i<interface.n_vectors; ++i)
     {
       new_sols[i].reinit(*solutions[i], true);
       y[i]->reinit(*solutions[i],true);
@@ -414,7 +464,7 @@ refine_and_transfer_solutions(std::vector<shared_ptr<LADealII::VectorType>> &y,
 
   sol_tr.interpolate (old_sols, new_sols);
 
-  for (unsigned int i=0; i<pde.n_vectors; ++i)
+  for (unsigned int i=0; i<interface.n_vectors; ++i)
     {
       *y[i] = new_sols[i];
     }
